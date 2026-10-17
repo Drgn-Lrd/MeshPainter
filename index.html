@@ -3,12 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MeshPainter - Multi-Color 3MF Pattern Mapper (v0.7)</title>
+    <title>MeshPainter - Multi-Color 3MF Pattern Mapper (v0.8)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/STLLoader.js"></script>
-    <!-- JSZip for 3MF packaging container generation -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 </head>
 <body class="bg-[#1A1A1A] text-white h-screen flex flex-col overflow-hidden selection:bg-neutral-700 selection:text-white">
@@ -17,7 +16,7 @@
     <header class="bg-[#141414] border-b border-[#2d2d2d] px-6 py-4 flex justify-between items-center shadow-lg">
         <h1 class="text-lg font-bold tracking-wide flex items-center gap-3">
             <span class="w-3 h-3 bg-white rounded-full shadow-[0_0_8px_rgba(255,255,255,0.6)]"></span>
-            MeshPainter <span class="text-neutral-400 font-normal text-sm">v0.7</span>
+            MeshPainter <span class="text-neutral-400 font-normal text-sm">v0.8</span>
         </h1>
         <div class="flex items-center gap-4">
             <label class="bg-[#222222] hover:bg-[#333333] border border-[#444444] text-white px-4 py-2 rounded-lg cursor-pointer font-medium text-xs transition shadow">
@@ -88,7 +87,6 @@
                 <p class="text-[11px] text-neutral-400 mb-3">Click slot to select active paint color. Use pencil to edit.</p>
                 
                 <div class="flex flex-col gap-2.5" id="paletteContainer">
-                    <!-- Default 4 Extruder Slots -->
                     <div class="color-slot flex items-center justify-between p-2.5 rounded-lg bg-[#1a1a1a] border border-white transition relative cursor-pointer" data-color="#43A047" data-name="Green">
                         <div class="flex items-center gap-3">
                             <span class="w-5 h-5 rounded-full bg-[#43A047] border border-neutral-600 shrink-0 swatch-indicator"></span>
@@ -147,7 +145,7 @@
                     </label>
                     <label class="flex items-center gap-2.5 text-xs text-neutral-300 cursor-pointer">
                         <input type="radio" name="applyMode" value="similar" class="accent-white">
-                        Repeat to All Similar Island Structures
+                        Repeat to All Similar Spatial Modules
                     </label>
                     <label class="flex items-center gap-2.5 text-xs text-neutral-300 cursor-pointer">
                         <input type="radio" name="applyMode" value="random" class="accent-white">
@@ -182,7 +180,7 @@
         <div class="bg-[#1e1e1e] border border-[#333] p-5 rounded-xl w-80 flex flex-col gap-4 shadow-2xl">
             <h3 class="text-sm font-bold text-white">Select Color for Extruder Slot</h3>
             
-            <!-- 11 Basic Color Terms for Colorblind Accessibility -->
+            <!-- 11 Basic Color Terms -->
             <div class="grid grid-cols-3 gap-2" id="basicColorGrid">
                 <button data-color="#000000" data-name="Black" class="basic-color-btn p-2 rounded bg-[#111] border border-[#444] text-xs text-center hover:border-white">Black</button>
                 <button data-color="#FFFFFF" data-name="White" class="basic-color-btn p-2 rounded bg-[#FFF] text-black border border-[#444] text-xs text-center hover:border-blue-500 font-medium">White</button>
@@ -225,16 +223,16 @@
     <script>
         let scene, camera, renderer, controls;
         let currentMesh = null;
-        let selectedColor = "#43A047"; // Default active paint color (Green)
+        let selectedColor = "#43A047";
         let setOnFaceMode = false;
-        let meshIslands = [];
+        let spatialClusters = []; // Stores spatial grid bounding boxes for modular repeating features
         let activeSlotElement = null;
 
         function initViewer() {
             const container = document.getElementById('canvasContainer');
             
             scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x1A1A1A); // Snapmaker dark charcoal grey background matching reference[cite: 7]
+            scene.background = new THREE.Color(0x1A1A1A);[cite: 7]
 
             camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 5000);
             camera.position.set(0, 150, 300);
@@ -286,12 +284,12 @@
             renderer.setSize(container.clientWidth, container.clientHeight);
         }
 
-        // Functional STL File Upload with Native Print-Face Alignment
+        // Functional STL File Upload with Natural Flat-Face Build Plate Alignment ($Z_{min} = 0$)
         document.getElementById('stlInput').addEventListener('change', function(e) {
             const file = e.target.files[0];
             if (!file) return;
 
-            showLoading(true, "Loading STL File & Aligning to Bed...");
+            showLoading(true, "Loading STL & Snapping to Build Bed...");
 
             const reader = new FileReader();
             reader.readAsArrayBuffer(file);
@@ -302,15 +300,18 @@
                     
                     geometry.computeVertexNormals();
 
-                    // Center geometry
-                    geometry.center();
+                    // Center in X and Y
+                    geometry.computeBoundingBox();
+                    const center = new THREE.Vector3();
+                    geometry.boundingBox.getCenter(center);
+                    geometry.translate(-center.x, -center.y, 0);
 
-                    // Automatically snap bottom (Z min) directly to build plate (Z = 0) in standard print orientation
+                    // Snap the lowest flat face (Zmin) exactly to Z = 0 (Print Bed)
                     geometry.computeBoundingBox();
                     const minZ = geometry.boundingBox.min.z;
                     geometry.translate(0, 0, -minZ);
 
-                    // Scale to standard workspace
+                    // Scale to workspace
                     geometry.computeBoundingBox();
                     const size = new THREE.Vector3();
                     geometry.boundingBox.getSize(size);
@@ -398,20 +399,17 @@
                 if (!slot) return;
 
                 if (e.target.closest('.edit-pencil')) {
-                    // Open color selection modal for this slot
                     activeSlotElement = slot;
                     document.getElementById('colorModal').classList.remove('hidden');
                     return;
                 }
 
-                // Select slot for active painting
                 document.querySelectorAll('.color-slot').forEach(s => s.classList.remove('border-white'));
                 slot.classList.add('border-white');
                 selectedColor = slot.getAttribute('data-color');
             });
         }
 
-        // Add Slot Button
         document.getElementById('addSlotBtn').addEventListener('click', () => {
             const container = document.getElementById('paletteContainer');
             const slotCount = container.children.length + 1;
@@ -433,7 +431,6 @@
             container.appendChild(newSlot);
         });
 
-        // Modal Selection Handlers
         document.querySelectorAll('.basic-color-btn').forEach(btn => {
             btn.addEventListener('click', () => {
                 if (!activeSlotElement) return;
@@ -454,8 +451,7 @@
         });
 
         document.getElementById('toggleAdvancedRgb').addEventListener('click', () => {
-            const adv = document.getElementById('advancedRgbContainer');
-            adv.classList.toggle('hidden');
+            document.getElementById('advancedRgbContainer').classList.toggle('hidden');
         });
 
         document.getElementById('applyModalRgb').addEventListener('click', () => {
@@ -487,73 +483,49 @@
             document.getElementById('advancedRgbContainer').classList.add('hidden');
         });
 
-        // Dynamic Connected Component Analysis (Mesh Islands)
+        // Fast Spatial Bounding-Box Clustering for Repeating Modules (Roses/Crystals)
         document.getElementById('groupBtn').addEventListener('click', function() {
             if (!currentMesh) return;
-            showLoading(true, "Analyzing topological connected components & repeating modules...");
+            showLoading(true, "Clustering repeating modular elements...");
 
             setTimeout(() => {
                 const geom = currentMesh.geometry;
                 const pos = geom.attributes.position;
                 const index = geom.index;
+                const triCount = index ? index.count / 3 : pos.count / 3;
 
-                const triangleCount = index ? index.count / 3 : pos.count / 3;
-                const visited = new Uint8Array(triangleCount);
-                meshIslands = [];
+                // Group triangles into spatial grid cells (clusters) to detect repeating modules like roses
+                const gridStep = 8.0; // Grid resolution sized to match individual rose modules
+                const clusters = {};
 
-                const vertToTri = {};
-                for (let i = 0; i < triangleCount; i++) {
+                for (let i = 0; i < triCount; i++) {
                     const i3 = i * 3;
                     const a = index ? index.getX(i3) : i3;
-                    const b = index ? index.getX(i3+1) : i3+1;
-                    const c = index ? index.getX(i3+2) : i3+2;
+                    
+                    const x = pos.getX(a);
+                    const y = pos.getY(a);
+                    const z = pos.getZ(a);
 
-                    [a, b, c].forEach(v => {
-                        if (!vertToTri[v]) vertToTri[v] = [];
-                        vertToTri[v].push(i);
-                    });
+                    const cellKey = `${Math.floor(x/gridStep)}_${Math.floor(y/gridStep)}_${Math.floor(z/gridStep)}`;
+                    if (!clusters[cellKey]) clusters[cellKey] = [];
+                    clusters[cellKey].push(i);
                 }
 
-                for (let i = 0; i < triangleCount; i++) {
-                    if (visited[i]) continue;
-                    const islandFaces = [];
-                    const queue = [i];
-                    visited[i] = 1;
-
-                    while (queue.length > 0) {
-                        const currTri = queue.pop();
-                        islandFaces.push(currTri);
-
-                        const t3 = currTri * 3;
-                        const ta = index ? index.getX(t3) : t3;
-                        const tb = index ? index.getX(t3+1) : t3+1;
-                        const tc = index ? index.getX(t3+2) : t3+2;
-
-                        [ta, tb, tc].forEach(v => {
-                            vertToTri[v].forEach(neighborTri => {
-                                if (!visited[neighborTri]) {
-                                    visited[neighborTri] = 1;
-                                    queue.push(neighborTri);
-                                }
-                            });
-                        });
-                    }
-                    meshIslands.push(islandFaces);
-                }
+                spatialClusters = Object.values(clusters);
 
                 const listEl = document.getElementById('componentList');
                 listEl.innerHTML = `
                     <div class="text-[11px] p-2 bg-[#1a1a1a] rounded border border-[#333333] flex justify-between items-center">
-                        <span>Discovered Structures</span>
-                        <span class="text-neutral-400 text-[10px]">${meshIslands.length} Mesh Islands</span>
+                        <span>Repeating Modules</span>
+                        <span class="text-neutral-400 text-[10px]">${spatialClusters.length} Feature Clusters</span>
                     </div>
                 `;
-                document.getElementById('groupStatus').innerText = `Analysis complete: Found ${meshIslands.length} independent structures ready for batch application.`;
+                document.getElementById('groupStatus').innerText = `Clustering complete: Detected ${spatialClusters.length} modular structural groups.`;
                 showLoading(false);
-            }, 600);
+            }, 300);
         });
 
-        // Click to Paint with Island/Similar Support
+        // Click to Paint with Spatial Module Propagation
         function onCanvasClick(event) {
             if (!currentMesh) return;
 
@@ -598,19 +570,21 @@
                     colorAttr.needsUpdate = true;
                 } 
                 else if (mode === 'similar') {
-                    let targetIsland = null;
-                    for (let island of meshIslands) {
-                        if (island.includes(faceIndex)) {
-                            targetIsland = island;
+                    // Find which spatial cluster the clicked face belongs to, and paint all matching clusters (all roses)
+                    let targetCluster = null;
+                    for (let cl of spatialClusters) {
+                        if (cl.includes(faceIndex)) {
+                            targetCluster = cl;
                             break;
                         }
                     }
 
-                    if (targetIsland) {
-                        const targetSize = targetIsland.length;
-                        meshIslands.forEach(island => {
-                            if (Math.abs(island.length - targetSize) <= targetSize * 0.15) {
-                                island.forEach(fIdx => {
+                    if (targetCluster) {
+                        const targetSize = targetCluster.length;
+                        spatialClusters.forEach(cl => {
+                            // Match clusters within similar triangle density (repeating rose modules)
+                            if (Math.abs(cl.length - targetSize) <= targetSize * 0.3) {
+                                cl.forEach(fIdx => {
                                     const t3 = fIdx * 3;
                                     const ia = indexAttr ? indexAttr.getX(t3) : t3;
                                     const ib = indexAttr ? indexAttr.getX(t3+1) : t3+1;
@@ -623,7 +597,6 @@
                         });
                         colorAttr.needsUpdate = true;
                     } else {
-                        // Fallback if clustering hasn't been run yet
                         const indices = indexAttr ? [
                             indexAttr.getX(faceIndex * 3),
                             indexAttr.getX(faceIndex * 3 + 1),
@@ -645,7 +618,7 @@
             }
         }
 
-        // Export Painted Model as True 3MF (Multi-Color Container)
+        // Export Painted Model as Multi-Color 3MF Container
         document.getElementById('exportBtn').addEventListener('click', async () => {
             if (!currentMesh) return;
             showLoading(true, "Generating 3MF Multi-Color Package...");
@@ -653,23 +626,19 @@
             try {
                 const zip = new JSZip();
                 
-                // 1. _rels/.rels
                 zip.folder("_rels").file(".rels", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
   <Relationship Target="/3D/3dmodel.model" Id="rel-1" Type="http://schemas.microsoft.com/3dmanufacturing/2013/01/3dmodel"/>
 </Relationships>`);
 
-                // 2. [Content_Types].xml
                 zip.file("[Content_Types].xml", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
   <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
   <Default Extension="model" ContentType="application/vnd.ms-package.3dmanufacturing-3dmodel+xml"/>
 </Types>`);
 
-                // Extract geometry and colors for 3MF XML format
                 const geom = currentMesh.geometry;
                 const pos = geom.attributes.position;
-                const col = geom.attributes.color;
                 const index = geom.index;
 
                 let verticesXml = '';
@@ -688,7 +657,7 @@
                 }
 
                 const modelXml = `<?xml version="1.0" encoding="UTF-8"?>
-<model unit="millimeter" xml:lang="en-US" xmlns="http://schemas.microsoft.com/3dmanufacturing/2013/01/3dmodel">
+<model unit="millimeter" xml:lang="en-US" xmlns="http://schemas.openxmlformats.org/package/2006/3dmodel">
   <resources>
     <object id="1" name="PaintedModel">
       <mesh>
