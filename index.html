@@ -1,710 +1,124 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MeshPainter - Multi-Color 3MF Pattern Mapper (v0.8)</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/STLLoader.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-</head>
-<body class="bg-[#1A1A1A] text-white h-screen flex flex-col overflow-hidden selection:bg-neutral-700 selection:text-white">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Mesh Painter</title>
+    <meta name="description" content="Multi-colour painting for 3D print models. Opens STL and 3MF, paints per triangle, exports a painted 3MF for Orca, Bambu Studio and PrusaSlicer. Runs entirely in your browser." />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect x='1' y='3' width='3' height='12' rx='1' fill='%2300A63F'/%3E%3Crect x='5' y='6' width='3' height='9' rx='1' fill='%23C8281E'/%3E%3Crect x='9' y='1' width='3' height='14' rx='1' fill='%23F4E22A'/%3E%3Crect x='13' y='8' width='2' height='7' rx='1' fill='%2357C3CC'/%3E%3C/svg%3E" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&family=JetBrains+Mono:wght@400;500&display=swap" />
+    <script type="module" crossorigin src="./engine.js?v=mvczn2n7"></script>
+    <link rel="modulepreload" crossorigin href="./three.js?v=mvczn2n7">
+    <link rel="stylesheet" crossorigin href="./style.css?v=mvczn2n7">
+  </head>
+  <body>
+    <div class="app" id="app">
+      <header class="topbar">
+        <div class="brand">
+          <span class="brand-mark" id="brand-mark" aria-hidden="true"></span>
+          <span class="brand-name">Mesh Painter</span>
+        </div>
+        <div class="file-info">
+          <span class="file-name" id="file-name">Sample chain</span>
+          <span class="chips" id="file-stats"></span>
+        </div>
+        <div class="top-actions">
+          <button type="button" class="btn" id="btn-open">
+            <svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true"><path d="M2.5 5.5h5l1.5 2h8.5v8.5h-15z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" /></svg>
+            Open STL / 3MF
+          </button>
+          <button type="button" class="btn" id="btn-check" title="Export to memory, re-import, and compare every triangle">Check round trip</button>
+          <button type="button" class="btn btn-primary" id="btn-export">Export 3MF</button>
+        </div>
+        <input type="file" id="file-input" accept=".stl,.3mf" hidden />
+      </header>
 
-    <!-- Top Navigation -->
-    <header class="bg-[#141414] border-b border-[#2d2d2d] px-6 py-4 flex justify-between items-center shadow-lg">
-        <h1 class="text-lg font-bold tracking-wide flex items-center gap-3">
-            <span class="w-3 h-3 bg-white rounded-full shadow-[0_0_8px_rgba(255,255,255,0.6)]"></span>
-            MeshPainter <span class="text-neutral-400 font-normal text-sm">v0.8</span>
-        </h1>
-        <div class="flex items-center gap-4">
-            <label class="bg-[#222222] hover:bg-[#333333] border border-[#444444] text-white px-4 py-2 rounded-lg cursor-pointer font-medium text-xs transition shadow">
-                Upload STL File
-                <input type="file" id="stlInput" accept=".stl" class="hidden">
-            </label>
-            <button id="exportBtn" disabled class="bg-[#007ACC] hover:bg-[#0098FF] text-white px-4 py-2 rounded-lg font-medium text-xs transition shadow opacity-50 cursor-not-allowed">
-                Export 3MF (Multi-Color)
+      <aside class="sidebar">
+        <section class="panel">
+          <h2>Filaments</h2>
+          <p class="hint">Click a swatch to paint with it. The pencil changes its colour. Filament 1 is the base colour for unpainted triangles.</p>
+          <div id="filaments"></div>
+        </section>
+
+        <section class="panel">
+          <h2>Tools</h2>
+          <div class="tools" role="radiogroup" aria-label="Tool">
+            <button type="button" class="tool" data-tool="orbit" role="radio" aria-checked="false">
+              <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true"><path d="M16.5 10a6.5 6.5 0 1 1-2-4.7" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" /><path d="M15 2.5v3.3h-3.3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" /></svg>
+              <span>Orbit</span><kbd>O</kbd>
             </button>
+            <button type="button" class="tool" data-tool="pencil" role="radio" aria-checked="false">
+              <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true"><path d="M3 16.5 10 3.5l7 13z" fill="currentColor" opacity=".25" /><path d="M3 16.5 10 3.5l7 13z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" /></svg>
+              <span>Pencil</span><kbd>P</kbd>
+            </button>
+            <button type="button" class="tool" data-tool="fine" role="radio" aria-checked="false" title="Fine pencil: paints a sixteenth of a triangle">
+              <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true"><path d="M3 16.5 10 3.5l7 13z M6.5 10h7 M10 16.5 6.5 10 M10 16.5l3.5-6.5" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" /><path d="M10 16.5 6.5 10h7z" fill="currentColor" opacity=".35" /></svg>
+              <span>Fine</span><kbd>F</kbd>
+            </button>
+            <button type="button" class="tool" data-tool="eraser" role="radio" aria-checked="false">
+              <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true"><path d="m7.5 16.5-4-4 8-8 5.5 5.5-7 6.5zM6 10l5.5 5.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" /><path d="M9.5 16.5h7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" /></svg>
+              <span>Eraser</span><kbd>E</kbd>
+            </button>
+          </div>
+          <p class="hint" id="tool-hint"></p>
+          <div class="undo-row">
+            <button type="button" class="btn btn-quiet" id="btn-undo" disabled>Undo</button>
+            <button type="button" class="btn btn-quiet" id="btn-redo" disabled>Redo</button>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>Objects and parts</h2>
+          <p class="hint">Each part's base filament is used where it is not painted.</p>
+          <div id="parts"></div>
+        </section>
+
+        <section class="panel" id="warnings-panel" hidden>
+          <h2>Notes from import</h2>
+          <ul class="warnings" id="warnings"></ul>
+        </section>
+
+        <footer class="sidebar-foot">Runs in your browser. Your models are never uploaded.</footer>
+      </aside>
+
+      <main class="stage" id="stage">
+        <div class="viewer" id="viewer"></div>
+        <div class="hud hud-views">
+          <button type="button" class="btn btn-hud" id="btn-fit" title="Fit the model in view">Fit</button>
+          <button type="button" class="btn btn-hud" id="btn-top" title="Look straight down at the plate">Top</button>
         </div>
-    </header>
-
-    <!-- Main Content Layout -->
-    <div class="flex flex-1 overflow-hidden">
-        
-        <!-- Sidebar Controls -->
-        <aside class="w-80 bg-[#141414] border-r border-[#2d2d2d] p-5 flex flex-col gap-5 overflow-y-auto z-10 select-none">
-            
-            <!-- Section 1: Orientation & Transforms -->
-            <div>
-                <h2 class="text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-3">1. Orientation & Transform</h2>
-                <div class="flex flex-col gap-2.5">
-                    <button id="snapBedBtn" disabled class="w-full bg-[#1a1a1a] text-neutral-500 border border-[#333333] py-2 px-3 rounded-lg text-xs font-medium transition cursor-not-allowed">
-                        Snap Bottom to Print Bed (Z=0)
-                    </button>
-                    <button id="setOnFaceBtn" disabled class="w-full bg-[#1a1a1a] text-neutral-500 border border-[#333333] py-2 px-3 rounded-lg text-xs font-medium transition cursor-not-allowed">
-                        Set on Face (Click Mesh Face)
-                    </button>
-                    
-                    <div class="grid grid-cols-3 gap-2 mt-1">
-                        <div class="flex flex-col gap-1">
-                            <span class="text-[10px] text-neutral-400 text-center">X Rot</span>
-                            <button id="rotXBtn" disabled class="bg-[#1a1a1a] border border-[#333333] hover:bg-[#2a2a2a] text-neutral-300 py-1 rounded text-xs transition cursor-not-allowed">+90°</button>
-                        </div>
-                        <div class="flex flex-col gap-1">
-                            <span class="text-[10px] text-neutral-400 text-center">Y Rot</span>
-                            <button id="rotYBtn" disabled class="bg-[#1a1a1a] border border-[#333333] hover:bg-[#2a2a2a] text-neutral-300 py-1 rounded text-xs transition cursor-not-allowed">+90°</button>
-                        </div>
-                        <div class="flex flex-col gap-1">
-                            <span class="text-[10px] text-neutral-400 text-center">Z Rot</span>
-                            <button id="rotZBtn" disabled class="bg-[#1a1a1a] border border-[#333333] hover:bg-[#2a2a2a] text-neutral-300 py-1 rounded text-xs transition cursor-not-allowed">+90°</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <hr class="border-[#2d2d2d]">
-
-            <!-- Section 2: Repeating Structure Clustering -->
-            <div>
-                <h2 class="text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-2">2. Structure Clustering & Parts</h2>
-                <button id="groupBtn" disabled class="w-full bg-[#1a1a1a] text-neutral-500 border border-[#333333] py-2 px-3 rounded-lg text-xs font-medium transition cursor-not-allowed">
-                    Analyze Repeating Elements
-                </button>
-                <div id="componentList" class="mt-2 flex flex-col gap-1.5 max-h-36 overflow-y-auto">
-                    <p class="text-[11px] text-neutral-500 italic" id="groupStatus">Upload an STL model to enable structure analysis.</p>
-                </div>
-            </div>
-
-            <hr class="border-[#2d2d2d]">
-
-            <!-- Section 3: Extruder Color Palette with Edit Pencils & 11 Basic Colors -->
-            <div>
-                <div class="flex justify-between items-center mb-2">
-                    <h2 class="text-xs font-semibold uppercase tracking-wider text-neutral-400">3. Extruder Palette Slots</h2>
-                    <button id="addSlotBtn" class="text-[10px] bg-[#222] hover:bg-[#333] text-neutral-200 px-2 py-0.5 rounded border border-[#444]">+ Add Slot</button>
-                </div>
-                <p class="text-[11px] text-neutral-400 mb-3">Click slot to select active paint color. Use pencil to edit.</p>
-                
-                <div class="flex flex-col gap-2.5" id="paletteContainer">
-                    <div class="color-slot flex items-center justify-between p-2.5 rounded-lg bg-[#1a1a1a] border border-white transition relative cursor-pointer" data-color="#43A047" data-name="Green">
-                        <div class="flex items-center gap-3">
-                            <span class="w-5 h-5 rounded-full bg-[#43A047] border border-neutral-600 shrink-0 swatch-indicator"></span>
-                            <div>
-                                <div class="text-xs font-bold text-neutral-100 slot-name-label">Green</div>
-                                <div class="text-[10px] text-neutral-400">Extruder Slot 1</div>
-                            </div>
-                        </div>
-                        <button class="edit-pencil text-neutral-400 hover:text-white p-1 text-xs" title="Edit Color">✏️</button>
-                    </div>
-
-                    <div class="color-slot flex items-center justify-between p-2.5 rounded-lg bg-[#1a1a1a] border border-[#333333] transition relative cursor-pointer" data-color="#E53935" data-name="Red">
-                        <div class="flex items-center gap-3">
-                            <span class="w-5 h-5 rounded-full bg-[#E53935] border border-neutral-600 shrink-0 swatch-indicator"></span>
-                            <div>
-                                <div class="text-xs font-bold text-neutral-100 slot-name-label">Red</div>
-                                <div class="text-[10px] text-neutral-400">Extruder Slot 2</div>
-                            </div>
-                        </div>
-                        <button class="edit-pencil text-neutral-400 hover:text-white p-1 text-xs" title="Edit Color">✏️</button>
-                    </div>
-
-                    <div class="color-slot flex items-center justify-between p-2.5 rounded-lg bg-[#1a1a1a] border border-[#333333] transition relative cursor-pointer" data-color="#FFFFFF" data-name="White">
-                        <div class="flex items-center gap-3">
-                            <span class="w-5 h-5 rounded-full bg-[#FFFFFF] border border-neutral-600 shrink-0 swatch-indicator"></span>
-                            <div>
-                                <div class="text-xs font-bold text-neutral-100 slot-name-label">White</div>
-                                <div class="text-[10px] text-neutral-400">Extruder Slot 3</div>
-                            </div>
-                        </div>
-                        <button class="edit-pencil text-neutral-400 hover:text-white p-1 text-xs" title="Edit Color">✏️</button>
-                    </div>
-
-                    <div class="color-slot flex items-center justify-between p-2.5 rounded-lg bg-[#1a1a1a] border border-[#333333] transition relative cursor-pointer" data-color="#111111" data-name="Black">
-                        <div class="flex items-center gap-3">
-                            <span class="w-5 h-5 rounded-full bg-[#111111] border border-neutral-600 shrink-0 swatch-indicator"></span>
-                            <div>
-                                <div class="text-xs font-bold text-neutral-100 slot-name-label">Black</div>
-                                <div class="text-[10px] text-neutral-400">Extruder Slot 4</div>
-                            </div>
-                        </div>
-                        <button class="edit-pencil text-neutral-400 hover:text-white p-1 text-xs" title="Edit Color">✏️</button>
-                    </div>
-                </div>
-            </div>
-
-            <hr class="border-[#2d2d2d]">
-
-            <!-- Section 4: Application Mode -->
-            <div>
-                <h2 class="text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-2">4. Application Mode</h2>
-                <div class="flex flex-col gap-2">
-                    <label class="flex items-center gap-2.5 text-xs text-neutral-300 cursor-pointer">
-                        <input type="radio" name="applyMode" value="single" checked class="accent-white">
-                        Paint Clicked Face Only
-                    </label>
-                    <label class="flex items-center gap-2.5 text-xs text-neutral-300 cursor-pointer">
-                        <input type="radio" name="applyMode" value="similar" class="accent-white">
-                        Repeat to All Similar Spatial Modules
-                    </label>
-                    <label class="flex items-center gap-2.5 text-xs text-neutral-300 cursor-pointer">
-                        <input type="radio" name="applyMode" value="random" class="accent-white">
-                        Randomize Across Palette
-                    </label>
-                </div>
-            </div>
-
-            <div class="mt-auto pt-4">
-                <button id="resetViewBtn" class="w-full bg-[#1a1a1a] hover:bg-[#222222] border border-[#333333] text-neutral-300 py-2 rounded-lg text-xs font-medium transition">
-                    Reset Camera View
-                </button>
-            </div>
-        </aside>
-
-        <!-- 3D Viewport Canvas Container -->
-        <main class="flex-1 relative bg-[#1A1A1A]" id="canvasContainer">
-            <div id="loadingOverlay" class="absolute inset-0 bg-black/80 flex items-center justify-center hidden z-20">
-                <div class="text-center">
-                    <div class="inline-block w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin mb-2"></div>
-                    <p class="text-xs font-medium text-neutral-300" id="loadingText">Processing Geometry...</p>
-                </div>
-            </div>
-            <div class="absolute top-4 left-4 bg-[#141414]/90 backdrop-blur border border-[#2d2d2d] px-3 py-1.5 rounded-lg text-[11px] text-neutral-400 pointer-events-none">
-                Left Click + Drag: Rotate | Right Click + Drag: Pan | Scroll: Zoom | Click Model to Paint
-            </div>
-        </main>
-    </div>
-
-    <!-- Color Picker Modal Overlay -->
-    <div id="colorModal" class="fixed inset-0 bg-black/70 flex items-center justify-center hidden z-50">
-        <div class="bg-[#1e1e1e] border border-[#333] p-5 rounded-xl w-80 flex flex-col gap-4 shadow-2xl">
-            <h3 class="text-sm font-bold text-white">Select Color for Extruder Slot</h3>
-            
-            <!-- 11 Basic Color Terms -->
-            <div class="grid grid-cols-3 gap-2" id="basicColorGrid">
-                <button data-color="#000000" data-name="Black" class="basic-color-btn p-2 rounded bg-[#111] border border-[#444] text-xs text-center hover:border-white">Black</button>
-                <button data-color="#FFFFFF" data-name="White" class="basic-color-btn p-2 rounded bg-[#FFF] text-black border border-[#444] text-xs text-center hover:border-blue-500 font-medium">White</button>
-                <button data-color="#E53935" data-name="Red" class="basic-color-btn p-2 rounded bg-[#E53935] border border-[#444] text-xs text-center hover:border-white">Red</button>
-                <button data-color="#43A047" data-name="Green" class="basic-color-btn p-2 rounded bg-[#43A047] border border-[#444] text-xs text-center hover:border-white">Green</button>
-                <button data-color="#FDD835" data-name="Yellow" class="basic-color-btn p-2 rounded bg-[#FDD835] text-black border border-[#444] text-xs text-center hover:border-white font-medium">Yellow</button>
-                <button data-color="#1E88E5" data-name="Blue" class="basic-color-btn p-2 rounded bg-[#1E88E5] border border-[#444] text-xs text-center hover:border-white">Blue</button>
-                <button data-color="#795548" data-name="Brown" class="basic-color-btn p-2 rounded bg-[#795548] border border-[#444] text-xs text-center hover:border-white">Brown</button>
-                <button data-color="#FB8C00" data-name="Orange" class="basic-color-btn p-2 rounded bg-[#FB8C00] border border-[#444] text-xs text-center hover:border-white">Orange</button>
-                <button data-color="#E91E63" data-name="Pink" class="basic-color-btn p-2 rounded bg-[#E91E63] border border-[#444] text-xs text-center hover:border-white">Pink</button>
-                <button data-color="#8E24AA" data-name="Purple" class="basic-color-btn p-2 rounded bg-[#8E24AA] border border-[#444] text-xs text-center hover:border-white">Purple</button>
-                <button data-color="#9E9E9E" data-name="Gray" class="basic-color-btn p-2 rounded bg-[#9E9E9E] border border-[#444] text-xs text-center hover:border-white">Gray</button>
-            </div>
-
-            <!-- Advanced RGB 0-255 Selector Toggle -->
-            <div class="border-t border-[#333] pt-3">
-                <button id="toggleAdvancedRgb" class="text-xs text-neutral-400 hover:text-white underline w-full text-center">Switch to Advanced RGB (0-255)</button>
-                <div id="advancedRgbContainer" class="hidden flex flex-col gap-2 mt-2 bg-[#141414] p-2.5 rounded border border-[#333]">
-                    <div class="flex items-center justify-between text-xs">
-                        <span class="text-red-400 font-medium">R (0-255):</span>
-                        <input type="number" id="modalR" min="0" max="255" value="255" class="w-16 bg-[#1a1a1a] border border-[#444] text-center rounded py-1 text-xs">
-                    </div>
-                    <div class="flex items-center justify-between text-xs">
-                        <span class="text-green-400 font-medium">G (0-255):</span>
-                        <input type="number" id="modalG" min="0" max="255" value="255" class="w-16 bg-[#1a1a1a] border border-[#444] text-center rounded py-1 text-xs">
-                    </div>
-                    <div class="flex items-center justify-between text-xs">
-                        <span class="text-blue-400 font-medium">B (0-255):</span>
-                        <input type="number" id="modalB" min="0" max="255" value="255" class="w-16 bg-[#1a1a1a] border border-[#444] text-center rounded py-1 text-xs">
-                    </div>
-                    <button id="applyModalRgb" class="mt-1 bg-[#333] hover:bg-[#444] text-white py-1.5 rounded text-xs font-medium transition">Apply RGB</button>
-                </div>
-            </div>
-
-            <button id="closeModalBtn" class="w-full bg-[#2a2a2a] hover:bg-[#333] py-2 rounded text-xs text-neutral-300 font-medium transition">Cancel</button>
+        <div class="statusbar">
+          <span id="hover-info" class="hover-info"></span>
+          <span class="bed-label">Grid: 270 × 270 mm plate, 10 mm squares</span>
         </div>
+        <div class="drop-hint" id="drop-hint" hidden><span>Drop an STL or 3MF to open it</span></div>
+        <div class="overlay" id="progress" hidden>
+          <div class="progress-card" role="status" aria-live="polite">
+            <div class="progress-title" id="progress-title">Opening…</div>
+            <div class="progress-phase"><span id="progress-phase"></span><span id="progress-pct" class="mono"></span></div>
+            <div class="bar"><div class="bar-fill" id="progress-bar"></div></div>
+            <div class="progress-foot mono" id="progress-foot"></div>
+          </div>
+        </div>
+        <div class="overlay" id="report" hidden>
+          <div class="report-card" role="dialog" aria-modal="true" aria-labelledby="report-title">
+            <div class="report-head">
+              <h3 id="report-title">Round-trip check</h3>
+              <span class="pill" id="report-pill"></span>
+            </div>
+            <p class="report-lede" id="report-lede"></p>
+            <table class="report-table" id="report-table"></table>
+            <ul class="report-notes" id="report-notes"></ul>
+            <div class="report-actions">
+              <button type="button" class="btn" id="report-close">Close</button>
+              <button type="button" class="btn btn-primary" id="report-save">Save this 3MF</button>
+            </div>
+          </div>
+        </div>
+      </main>
     </div>
-
-    <!-- Application Script -->
-    <script>
-        let scene, camera, renderer, controls;
-        let currentMesh = null;
-        let selectedColor = "#43A047";
-        let setOnFaceMode = false;
-        let spatialClusters = []; // Stores spatial grid bounding boxes for modular repeating features
-        let activeSlotElement = null;
-
-        function initViewer() {
-            const container = document.getElementById('canvasContainer');
-            
-            scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x1A1A1A);[cite: 7]
-
-            camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 5000);
-            camera.position.set(0, 150, 300);
-
-            renderer = new THREE.WebGLRenderer({ antialias: true });
-            renderer.setSize(container.clientWidth, container.clientHeight);
-            renderer.setPixelRatio(window.devicePixelRatio);
-            container.appendChild(renderer.domElement);
-
-            controls = new THREE.OrbitControls(camera, renderer.domElement);
-            controls.enableDamping = true;
-            controls.dampingFactor = 0.05;
-
-            const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
-            scene.add(ambientLight);
-
-            const dirLight1 = new THREE.DirectionalLight(0xffffff, 0.8);
-            dirLight1.position.set(200, 400, 200);
-            scene.add(dirLight1);
-
-            const dirLight2 = new THREE.DirectionalLight(0xaaaaaa, 0.4);
-            dirLight2.position.set(-200, -200, -200);
-            scene.add(dirLight2);
-
-            const grid = new THREE.GridHelper(500, 50, 0x555555, 0x333333);
-            grid.position.y = 0;
-            scene.add(grid);
-
-            const axesHelper = new THREE.AxesHelper(100);
-            scene.add(axesHelper);
-
-            window.addEventListener('resize', onWindowResize);
-            renderer.domElement.addEventListener('click', onCanvasClick);
-
-            initPaletteListeners();
-            animate();
-        }
-
-        function animate() {
-            requestAnimationFrame(animate);
-            controls.update();
-            renderer.render(scene, camera);
-        }
-
-        function onWindowResize() {
-            const container = document.getElementById('canvasContainer');
-            camera.aspect = container.clientWidth / container.clientHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(container.clientWidth, container.clientHeight);
-        }
-
-        // Functional STL File Upload with Natural Flat-Face Build Plate Alignment ($Z_{min} = 0$)
-        document.getElementById('stlInput').addEventListener('change', function(e) {
-            const file = e.target.files[0];
-            if (!file) return;
-
-            showLoading(true, "Loading STL & Snapping to Build Bed...");
-
-            const reader = new FileReader();
-            reader.readAsArrayBuffer(file);
-            reader.onload = function(event) {
-                try {
-                    const loader = new THREE.STLLoader();
-                    const geometry = loader.parse(event.target.result);
-                    
-                    geometry.computeVertexNormals();
-
-                    // Center in X and Y
-                    geometry.computeBoundingBox();
-                    const center = new THREE.Vector3();
-                    geometry.boundingBox.getCenter(center);
-                    geometry.translate(-center.x, -center.y, 0);
-
-                    // Snap the lowest flat face (Zmin) exactly to Z = 0 (Print Bed)
-                    geometry.computeBoundingBox();
-                    const minZ = geometry.boundingBox.min.z;
-                    geometry.translate(0, 0, -minZ);
-
-                    // Scale to workspace
-                    geometry.computeBoundingBox();
-                    const size = new THREE.Vector3();
-                    geometry.boundingBox.getSize(size);
-                    const maxDim = Math.max(size.x, size.y, size.z);
-                    const scaleFactor = 150 / maxDim;
-                    geometry.scale(scaleFactor, scaleFactor, scaleFactor);
-
-                    // Re-snap bottom to Z = 0 after scaling
-                    geometry.computeBoundingBox();
-                    geometry.translate(0, 0, -geometry.boundingBox.min.z);
-
-                    if (currentMesh) scene.remove(currentMesh);
-
-                    const material = new THREE.MeshStandardMaterial({ 
-                        color: 0xffffff, 
-                        roughness: 0.3, 
-                        metalness: 0.2,
-                        vertexColors: true 
-                    });
-
-                    const posCount = geometry.attributes.position.count;
-                    const colors = new Float32Array(posCount * 3);
-                    for (let i = 0; i < posCount * 3; i += 3) {
-                        colors[i] = 0.85;
-                        colors[i+1] = 0.85;
-                        colors[i+2] = 0.85;
-                    }
-                    geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-
-                    currentMesh = new THREE.Mesh(geometry, material);
-                    scene.add(currentMesh);
-
-                    enableControls(true);
-                    showLoading(false);
-                } catch(err) {
-                    console.error(err);
-                    alert("Error parsing STL file.");
-                    showLoading(false);
-                }
-            };
-        });
-
-        function enableControls(enabled) {
-            const ids = ['snapBedBtn', 'setOnFaceBtn', 'rotXBtn', 'rotYBtn', 'rotZBtn', 'groupBtn', 'exportBtn'];
-            ids.forEach(id => {
-                const btn = document.getElementById(id);
-                btn.disabled = !enabled;
-                if(enabled) {
-                    btn.classList.remove('bg-[#1a1a1a]', 'text-neutral-500', 'cursor-not-allowed', 'opacity-50');
-                    btn.classList.add('bg-[#1f1f1f]', 'hover:bg-[#2a2a2a]', 'text-neutral-200', 'cursor-pointer');
-                    if(id === 'exportBtn') btn.classList.add('bg-[#007ACC]', 'text-white');
-                }
-            });
-        }
-
-        document.getElementById('snapBedBtn').addEventListener('click', () => {
-            if(!currentMesh) return;
-            currentMesh.geometry.computeBoundingBox();
-            const minZ = currentMesh.geometry.boundingBox.min.z;
-            currentMesh.position.z -= minZ;
-        });
-
-        document.getElementById('setOnFaceBtn').addEventListener('click', () => {
-            setOnFaceMode = !setOnFaceMode;
-            const btn = document.getElementById('setOnFaceBtn');
-            if (setOnFaceMode) {
-                btn.classList.add('bg-red-600', 'text-white');
-                btn.innerText = "Click a face on the model...";
-            } else {
-                btn.classList.remove('bg-red-600', 'text-white');
-                btn.innerText = "Set on Face (Click Mesh Face)";
-            }
-        });
-
-        document.getElementById('rotXBtn').addEventListener('click', () => { if(currentMesh) currentMesh.rotation.x += Math.PI / 2; });
-        document.getElementById('rotYBtn').addEventListener('click', () => { if(currentMesh) currentMesh.rotation.y += Math.PI / 2; });
-        document.getElementById('rotZBtn').addEventListener('click', () => { if(currentMesh) currentMesh.rotation.z += Math.PI / 2; });
-
-        // Palette Slot & Edit Pencil Management
-        function initPaletteListeners() {
-            const container = document.getElementById('paletteContainer');
-            
-            container.addEventListener('click', (e) => {
-                const slot = e.target.closest('.color-slot');
-                if (!slot) return;
-
-                if (e.target.closest('.edit-pencil')) {
-                    activeSlotElement = slot;
-                    document.getElementById('colorModal').classList.remove('hidden');
-                    return;
-                }
-
-                document.querySelectorAll('.color-slot').forEach(s => s.classList.remove('border-white'));
-                slot.classList.add('border-white');
-                selectedColor = slot.getAttribute('data-color');
-            });
-        }
-
-        document.getElementById('addSlotBtn').addEventListener('click', () => {
-            const container = document.getElementById('paletteContainer');
-            const slotCount = container.children.length + 1;
-            
-            const newSlot = document.createElement('div');
-            newSlot.className = 'color-slot flex items-center justify-between p-2.5 rounded-lg bg-[#1a1a1a] border border-[#333333] transition relative cursor-pointer';
-            newSlot.setAttribute('data-color', '#1E88E5');
-            newSlot.setAttribute('data-name', 'Blue');
-            newSlot.innerHTML = `
-                <div class="flex items-center gap-3">
-                    <span class="w-5 h-5 rounded-full bg-[#1E88E5] border border-neutral-600 shrink-0 swatch-indicator"></span>
-                    <div>
-                        <div class="text-xs font-bold text-neutral-100 slot-name-label">Blue</div>
-                        <div class="text-[10px] text-neutral-400">Extruder Slot ${slotCount}</div>
-                    </div>
-                </div>
-                <button class="edit-pencil text-neutral-400 hover:text-white p-1 text-xs" title="Edit Color">✏️</button>
-            `;
-            container.appendChild(newSlot);
-        });
-
-        document.querySelectorAll('.basic-color-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                if (!activeSlotElement) return;
-                const color = btn.getAttribute('data-color');
-                const name = btn.getAttribute('data-name');
-
-                activeSlotElement.setAttribute('data-color', color);
-                activeSlotElement.setAttribute('data-name', name);
-                activeSlotElement.querySelector('.swatch-indicator').style.backgroundColor = color;
-                activeSlotElement.querySelector('.slot-name-label').innerText = name;
-
-                if (activeSlotElement.classList.contains('border-white')) {
-                    selectedColor = color;
-                }
-
-                document.getElementById('colorModal').classList.add('hidden');
-            });
-        });
-
-        document.getElementById('toggleAdvancedRgb').addEventListener('click', () => {
-            document.getElementById('advancedRgbContainer').classList.toggle('hidden');
-        });
-
-        document.getElementById('applyModalRgb').addEventListener('click', () => {
-            if (!activeSlotElement) return;
-            const r = parseInt(document.getElementById('modalR').value) || 0;
-            const g = parseInt(document.getElementById('modalG').value) || 0;
-            const b = parseInt(document.getElementById('modalB').value) || 0;
-
-            const hexR = r.toString(16).padStart(2, '0');
-            const hexG = g.toString(16).padStart(2, '0');
-            const hexB = b.toString(16).padStart(2, '0');
-            const hexColor = `#${hexR}${hexG}${hexB}`.toUpperCase();
-
-            activeSlotElement.setAttribute('data-color', hexColor);
-            activeSlotElement.setAttribute('data-name', `RGB(${r},${g},${b})`);
-            activeSlotElement.querySelector('.swatch-indicator').style.backgroundColor = hexColor;
-            activeSlotElement.querySelector('.slot-name-label').innerText = `RGB(${r},${g},${b})`;
-
-            if (activeSlotElement.classList.contains('border-white')) {
-                selectedColor = hexColor;
-            }
-
-            document.getElementById('colorModal').classList.add('hidden');
-            document.getElementById('advancedRgbContainer').classList.add('hidden');
-        });
-
-        document.getElementById('closeModalBtn').addEventListener('click', () => {
-            document.getElementById('colorModal').classList.add('hidden');
-            document.getElementById('advancedRgbContainer').classList.add('hidden');
-        });
-
-        // Fast Spatial Bounding-Box Clustering for Repeating Modules (Roses/Crystals)
-        document.getElementById('groupBtn').addEventListener('click', function() {
-            if (!currentMesh) return;
-            showLoading(true, "Clustering repeating modular elements...");
-
-            setTimeout(() => {
-                const geom = currentMesh.geometry;
-                const pos = geom.attributes.position;
-                const index = geom.index;
-                const triCount = index ? index.count / 3 : pos.count / 3;
-
-                // Group triangles into spatial grid cells (clusters) to detect repeating modules like roses
-                const gridStep = 8.0; // Grid resolution sized to match individual rose modules
-                const clusters = {};
-
-                for (let i = 0; i < triCount; i++) {
-                    const i3 = i * 3;
-                    const a = index ? index.getX(i3) : i3;
-                    
-                    const x = pos.getX(a);
-                    const y = pos.getY(a);
-                    const z = pos.getZ(a);
-
-                    const cellKey = `${Math.floor(x/gridStep)}_${Math.floor(y/gridStep)}_${Math.floor(z/gridStep)}`;
-                    if (!clusters[cellKey]) clusters[cellKey] = [];
-                    clusters[cellKey].push(i);
-                }
-
-                spatialClusters = Object.values(clusters);
-
-                const listEl = document.getElementById('componentList');
-                listEl.innerHTML = `
-                    <div class="text-[11px] p-2 bg-[#1a1a1a] rounded border border-[#333333] flex justify-between items-center">
-                        <span>Repeating Modules</span>
-                        <span class="text-neutral-400 text-[10px]">${spatialClusters.length} Feature Clusters</span>
-                    </div>
-                `;
-                document.getElementById('groupStatus').innerText = `Clustering complete: Detected ${spatialClusters.length} modular structural groups.`;
-                showLoading(false);
-            }, 300);
-        });
-
-        // Click to Paint with Spatial Module Propagation
-        function onCanvasClick(event) {
-            if (!currentMesh) return;
-
-            const rect = renderer.domElement.getBoundingClientRect();
-            if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) return;
-
-            const x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-            const y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-
-            const raycaster = new THREE.Raycaster();
-            raycaster.setFromCamera(new THREE.Vector2(x, y), camera);
-
-            const intersects = raycaster.intersectObject(currentMesh);
-            if (intersects.length > 0) {
-                const intersect = intersects[0];
-                
-                if (setOnFaceMode) {
-                    currentMesh.rotation.set(0, 0, 0);
-                    currentMesh.geometry.computeBoundingBox();
-                    currentMesh.position.z -= currentMesh.geometry.boundingBox.min.z;
-                    setOnFaceMode = false;
-                    const btn = document.getElementById('setOnFaceBtn');
-                    btn.classList.remove('bg-red-600', 'text-white');
-                    btn.innerText = "Set on Face (Click Mesh Face)";
-                    return;
-                }
-
-                const faceIndex = intersect.faceIndex;
-                const mode = document.querySelector('input[name="applyMode"]:checked').value;
-                const col = new THREE.Color(selectedColor);
-                const colorAttr = currentMesh.geometry.attributes.color;
-                const indexAttr = currentMesh.geometry.index;
-
-                if (mode === 'single') {
-                    const indices = indexAttr ? [
-                        indexAttr.getX(faceIndex * 3),
-                        indexAttr.getX(faceIndex * 3 + 1),
-                        indexAttr.getX(faceIndex * 3 + 2)
-                    ] : [faceIndex * 3, faceIndex * 3 + 1, faceIndex * 3 + 2];
-
-                    indices.forEach(idx => colorAttr.setXYZ(idx, col.r, col.g, col.b));
-                    colorAttr.needsUpdate = true;
-                } 
-                else if (mode === 'similar') {
-                    // Find which spatial cluster the clicked face belongs to, and paint all matching clusters (all roses)
-                    let targetCluster = null;
-                    for (let cl of spatialClusters) {
-                        if (cl.includes(faceIndex)) {
-                            targetCluster = cl;
-                            break;
-                        }
-                    }
-
-                    if (targetCluster) {
-                        const targetSize = targetCluster.length;
-                        spatialClusters.forEach(cl => {
-                            // Match clusters within similar triangle density (repeating rose modules)
-                            if (Math.abs(cl.length - targetSize) <= targetSize * 0.3) {
-                                cl.forEach(fIdx => {
-                                    const t3 = fIdx * 3;
-                                    const ia = indexAttr ? indexAttr.getX(t3) : t3;
-                                    const ib = indexAttr ? indexAttr.getX(t3+1) : t3+1;
-                                    const ic = indexAttr ? indexAttr.getX(t3+2) : t3+2;
-                                    colorAttr.setXYZ(ia, col.r, col.g, col.b);
-                                    colorAttr.setXYZ(ib, col.r, col.g, col.b);
-                                    colorAttr.setXYZ(ic, col.r, col.g, col.b);
-                                });
-                            }
-                        });
-                        colorAttr.needsUpdate = true;
-                    } else {
-                        const indices = indexAttr ? [
-                            indexAttr.getX(faceIndex * 3),
-                            indexAttr.getX(faceIndex * 3 + 1),
-                            indexAttr.getX(faceIndex * 3 + 2)
-                        ] : [faceIndex * 3, faceIndex * 3 + 1, faceIndex * 3 + 2];
-                        indices.forEach(idx => colorAttr.setXYZ(idx, col.r, col.g, col.b));
-                        colorAttr.needsUpdate = true;
-                    }
-                } 
-                else if (mode === 'random') {
-                    const slots = document.querySelectorAll('.color-slot');
-                    const palette = Array.from(slots).map(s => new THREE.Color(s.getAttribute('data-color')));
-                    for (let i = 0; i < colorAttr.count; i++) {
-                        const randCol = palette[Math.floor(Math.random() * palette.length)];
-                        colorAttr.setXYZ(i, randCol.r, randCol.g, randCol.b);
-                    }
-                    colorAttr.needsUpdate = true;
-                }
-            }
-        }
-
-        // Export Painted Model as Multi-Color 3MF Container
-        document.getElementById('exportBtn').addEventListener('click', async () => {
-            if (!currentMesh) return;
-            showLoading(true, "Generating 3MF Multi-Color Package...");
-
-            try {
-                const zip = new JSZip();
-                
-                zip.folder("_rels").file(".rels", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
-  <Relationship Target="/3D/3dmodel.model" Id="rel-1" Type="http://schemas.microsoft.com/3dmanufacturing/2013/01/3dmodel"/>
-</Relationships>`);
-
-                zip.file("[Content_Types].xml", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
-  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
-  <Default Extension="model" ContentType="application/vnd.ms-package.3dmanufacturing-3dmodel+xml"/>
-</Types>`);
-
-                const geom = currentMesh.geometry;
-                const pos = geom.attributes.position;
-                const index = geom.index;
-
-                let verticesXml = '';
-                for (let i = 0; i < pos.count; i++) {
-                    verticesXml += `<vertex x="${pos.getX(i).toFixed(4)}" y="${pos.getY(i).toFixed(4)}" z="${pos.getZ(i).toFixed(4)}" />\n`;
-                }
-
-                let trianglesXml = '';
-                const triCount = index ? index.count / 3 : pos.count / 3;
-                for (let i = 0; i < triCount; i++) {
-                    const i3 = i * 3;
-                    const v1 = index ? index.getX(i3) : i3;
-                    const v2 = index ? index.getX(i3+1) : i3+1;
-                    const v3 = index ? index.getX(i3+2) : i3+2;
-                    trianglesXml += `<triangle v1="${v1}" v2="${v2}" v3="${v3}" />\n`;
-                }
-
-                const modelXml = `<?xml version="1.0" encoding="UTF-8"?>
-<model unit="millimeter" xml:lang="en-US" xmlns="http://schemas.openxmlformats.org/package/2006/3dmodel">
-  <resources>
-    <object id="1" name="PaintedModel">
-      <mesh>
-        <vertices>
-          ${verticesXml}
-        </vertices>
-        <triangles>
-          ${trianglesXml}
-        </triangles>
-      </mesh>
-    </object>
-  </resources>
-  <build>
-    <item objectid="1"/>
-  </build>
-</model>`;
-
-                zip.folder("3D").file("3dmodel.model", modelXml);
-
-                const content = await zip.generateAsync({ type: "blob" });
-                const link = document.createElement('a');
-                link.href = URL.createObjectURL(content);
-                link.download = 'painted_model_output.3mf';
-                link.click();
-
-                showLoading(false);
-            } catch(err) {
-                console.error(err);
-                alert("Error generating 3MF export package.");
-                showLoading(false);
-            }
-        });
-
-        document.getElementById('resetViewBtn').addEventListener('click', function() {
-            camera.position.set(0, 150, 300);
-            controls.target.set(0, 0, 0);
-            controls.update();
-        });
-
-        function showLoading(show, text = "") {
-            const overlay = document.getElementById('loadingOverlay');
-            if (text) document.getElementById('loadingText').innerText = text;
-            if (show) overlay.classList.remove('hidden');
-            else overlay.classList.add('hidden');
-        }
-
-        initViewer();
-    </script>
-</body>
+    <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+  </body>
 </html>
