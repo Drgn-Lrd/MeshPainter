@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MeshPainter - Multi-Color STL Pattern Mapper (v0.5)</title>
+    <title>MeshPainter - Multi-Color STL Pattern Mapper (v0.6)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
@@ -16,7 +16,7 @@
     <header class="bg-[#141414] border-b border-[#2d2d2d] px-6 py-4 flex justify-between items-center shadow-lg">
         <h1 class="text-lg font-bold tracking-wide flex items-center gap-3">
             <span class="w-3 h-3 bg-white rounded-full shadow-[0_0_8px_rgba(255,255,255,0.6)]"></span>
-            MeshPainter <span class="text-neutral-400 font-normal text-sm">v0.5</span>
+            MeshPainter <span class="text-neutral-400 font-normal text-sm">v0.6</span>
         </h1>
         <div class="flex items-center gap-4">
             <label class="bg-[#222222] hover:bg-[#333333] border border-[#444444] text-white px-4 py-2 rounded-lg cursor-pointer font-medium text-xs transition shadow">
@@ -65,7 +65,7 @@
 
             <hr class="border-[#2d2d2d]">
 
-            <!-- Section 2: Repeating Structure Clustering & Component Indexing -->
+            <!-- Section 2: Repeating Structure Clustering -->
             <div>
                 <h2 class="text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-2">2. Structure Clustering & Parts</h2>
                 <button id="groupBtn" disabled class="w-full bg-[#1a1a1a] text-neutral-500 border border-[#333333] py-2 px-3 rounded-lg text-xs font-medium transition cursor-not-allowed">
@@ -78,44 +78,61 @@
 
             <hr class="border-[#2d2d2d]">
 
-            <!-- Section 3: Fully Editable Labeled Color Palette -->
+            <!-- Section 3: Accessible Color Palette & Advanced RGB (0-255) Selector -->
             <div>
-                <h2 class="text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-2">3. Editable Color Palette Slots</h2>
-                <p class="text-[11px] text-neutral-400 mb-3">Customize color swatch and extruder name.</p>
+                <h2 class="text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-2">3. Accessible Color Palette</h2>
+                <p class="text-[11px] text-neutral-400 mb-3">Select preset or tune advanced 0-255 RGB channels.</p>
                 
-                <div class="flex flex-col gap-2.5" id="paletteContainer">
-                    <!-- Slot 1 -->
-                    <div class="color-slot flex items-center gap-3 p-2 rounded-lg bg-[#1a1a1a] border border-white transition cursor-pointer" data-color="#FFFFFF">
-                        <input type="color" value="#FFFFFF" class="w-6 h-6 rounded bg-transparent border-0 cursor-pointer color-picker-input">
-                        <div class="flex-1">
-                            <input type="text" value="Pure White" class="bg-transparent text-xs font-bold text-neutral-100 w-full outline-none border-b border-transparent focus:border-neutral-500 name-input">
-                            <div class="text-[10px] text-neutral-400">Extruder Slot 1</div>
-                        </div>
+                <!-- Preset Swatches with Names Below -->
+                <div class="grid grid-cols-2 gap-2 mb-4" id="presetPalette">
+                    <button data-color="#FFFFFF" class="color-preset flex flex-col items-center p-2 rounded-lg bg-[#1a1a1a] border border-white transition cursor-pointer">
+                        <span class="w-6 h-6 rounded-full bg-white border border-neutral-600 mb-1"></span>
+                        <span class="text-[11px] font-bold text-neutral-200">Pure White</span>
+                        <span class="text-[9px] text-neutral-400">Slot 1</span>
+                    </button>
+                    <button data-color="#E53935" class="color-preset flex flex-col items-center p-2 rounded-lg bg-[#1a1a1a] border border-[#333333] transition cursor-pointer">
+                        <span class="w-6 h-6 rounded-full bg-[#E53935] border border-neutral-600 mb-1"></span>
+                        <span class="text-[11px] font-bold text-neutral-200">Bright Red</span>
+                        <span class="text-[9px] text-neutral-400">Slot 2</span>
+                    </button>
+                    <button data-color="#1E88E5" class="color-preset flex flex-col items-center p-2 rounded-lg bg-[#1a1a1a] border border-[#333333] transition cursor-pointer">
+                        <span class="w-6 h-6 rounded-full bg-[#1E88E5] border border-neutral-600 mb-1"></span>
+                        <span class="text-[11px] font-bold text-neutral-200">Electric Blue</span>
+                        <span class="text-[9px] text-neutral-400">Slot 3</span>
+                    </button>
+                    <button data-color="#43A047" class="color-preset flex flex-col items-center p-2 rounded-lg bg-[#1a1a1a] border border-[#333333] transition cursor-pointer">
+                        <span class="w-6 h-6 rounded-full bg-[#43A047] border border-neutral-600 mb-1"></span>
+                        <span class="text-[11px] font-bold text-neutral-200">Forest Green</span>
+                        <span class="text-[9px] text-neutral-400">Slot 4</span>
+                    </button>
+                    <button data-color="#FB8C00" class="color-preset flex flex-col items-center p-2 rounded-lg bg-[#1a1a1a] border border-[#333333] transition cursor-pointer">
+                        <span class="w-6 h-6 rounded-full bg-[#FB8C00] border border-neutral-600 mb-1"></span>
+                        <span class="text-[11px] font-bold text-neutral-200">Vivid Orange</span>
+                        <span class="text-[9px] text-neutral-400">Slot 5</span>
+                    </button>
+                    <button data-color="#111111" class="color-preset flex flex-col items-center p-2 rounded-lg bg-[#1a1a1a] border border-[#333333] transition cursor-pointer">
+                        <span class="w-6 h-6 rounded-full bg-[#111111] border border-neutral-600 mb-1"></span>
+                        <span class="text-[11px] font-bold text-neutral-200">Carbon Black</span>
+                        <span class="text-[9px] text-neutral-400">Slot 6</span>
+                    </button>
+                </div>
+
+                <!-- Advanced 0-255 RGB Selector -->
+                <div class="bg-[#1a1a1a] p-3 rounded-lg border border-[#333333] flex flex-col gap-2">
+                    <div class="text-[11px] font-semibold text-neutral-300">Advanced 255 RGB Channel Tuning</div>
+                    <div class="flex items-center justify-between text-xs">
+                        <span class="text-red-400 font-medium">Red (0-255):</span>
+                        <input type="number" id="rgbR" min="0" max="255" value="255" class="w-16 bg-[#141414] border border-[#444] text-center rounded py-1 text-xs">
                     </div>
-                    <!-- Slot 2 -->
-                    <div class="color-slot flex items-center gap-3 p-2 rounded-lg bg-[#1a1a1a] border border-[#333333] transition cursor-pointer" data-color="#E53935">
-                        <input type="color" value="#E53935" class="w-6 h-6 rounded bg-transparent border-0 cursor-pointer color-picker-input">
-                        <div class="flex-1">
-                            <input type="text" value="Accent Red" class="bg-transparent text-xs font-bold text-neutral-100 w-full outline-none border-b border-transparent focus:border-neutral-500 name-input">
-                            <div class="text-[10px] text-neutral-400">Extruder Slot 2</div>
-                        </div>
+                    <div class="flex items-center justify-between text-xs">
+                        <span class="text-green-400 font-medium">Green (0-255):</span>
+                        <input type="number" id="rgbG" min="0" max="255" value="255" class="w-16 bg-[#141414] border border-[#444] text-center rounded py-1 text-xs">
                     </div>
-                    <!-- Slot 3 -->
-                    <div class="color-slot flex items-center gap-3 p-2 rounded-lg bg-[#1a1a1a] border border-[#333333] transition cursor-pointer" data-color="#D4AF37">
-                        <input type="color" value="#D4AF37" class="w-6 h-6 rounded bg-transparent border-0 cursor-pointer color-picker-input">
-                        <div class="flex-1">
-                            <input type="text" value="Metallic Gold" class="bg-transparent text-xs font-bold text-neutral-100 w-full outline-none border-b border-transparent focus:border-neutral-500 name-input">
-                            <div class="text-[10px] text-neutral-400">Extruder Slot 3</div>
-                        </div>
+                    <div class="flex items-center justify-between text-xs">
+                        <span class="text-blue-400 font-medium">Blue (0-255):</span>
+                        <input type="number" id="rgbB" min="0" max="255" value="255" class="w-16 bg-[#141414] border border-[#444] text-center rounded py-1 text-xs">
                     </div>
-                    <!-- Slot 4 -->
-                    <div class="color-slot flex items-center gap-3 p-2 rounded-lg bg-[#1a1a1a] border border-[#333333] transition cursor-pointer" data-color="#111111">
-                        <input type="color" value="#111111" class="w-6 h-6 rounded bg-transparent border-0 cursor-pointer color-picker-input">
-                        <div class="flex-1">
-                            <input type="text" value="Carbon Dark" class="bg-transparent text-xs font-bold text-neutral-100 w-full outline-none border-b border-transparent focus:border-neutral-500 name-input">
-                            <div class="text-[10px] text-neutral-400">Extruder Slot 4</div>
-                        </div>
-                    </div>
+                    <button id="applyRgbBtn" class="mt-1 bg-[#333] hover:bg-[#444] text-white py-1.5 rounded text-xs font-medium transition">Apply RGB Color</button>
                 </div>
             </div>
 
@@ -135,7 +152,7 @@
                     </label>
                     <label class="flex items-center gap-2.5 text-xs text-neutral-300 cursor-pointer">
                         <input type="radio" name="applyMode" value="random" class="accent-white">
-                        Randomize Across Palette Slots
+                        Randomize Across Palette
                     </label>
                 </div>
             </div>
@@ -167,13 +184,13 @@
         let currentMesh = null;
         let selectedColor = "#FFFFFF";
         let setOnFaceMode = false;
-        let meshIslands = []; // Stores connected component triangle indices for modular painting
+        let meshIslands = [];
 
         function initViewer() {
             const container = document.getElementById('canvasContainer');
             
             scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x1A1A1A);[cite: 7]
+            scene.background = new THREE.Color(0x1A1A1A);
 
             camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 5000);
             camera.position.set(0, 150, 300);
@@ -187,7 +204,6 @@
             controls.enableDamping = true;
             controls.dampingFactor = 0.05;
 
-            // Multi-angle lighting for complex detail visibility
             const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
             scene.add(ambientLight);
 
@@ -199,7 +215,6 @@
             dirLight2.position.set(-200, -200, -200);
             scene.add(dirLight2);
 
-            // High-visibility build plate grid & Axes
             const grid = new THREE.GridHelper(500, 50, 0x555555, 0x333333);
             grid.position.y = 0;
             scene.add(grid);
@@ -226,12 +241,12 @@
             renderer.setSize(container.clientWidth, container.clientHeight);
         }
 
-        // STL File Upload Handler
+        // Restored Functional STL File Upload Handler
         document.getElementById('stlInput').addEventListener('change', function(e) {
             const file = e.target.files[0];
             if (!file) return;
 
-            showLoading(true, "Loading STL File & Computing Geometry...");
+            showLoading(true, "Loading STL File...");
 
             const reader = new FileReader();
             reader.readAsArrayBuffer(file);
@@ -241,8 +256,6 @@
                     const geometry = loader.parse(event.target.result);
                     
                     geometry.computeVertexNormals();
-
-                    // Center and scale to standard workspace
                     geometry.center();
                     geometry.computeBoundingBox();
                     const size = new THREE.Vector3();
@@ -251,7 +264,6 @@
                     const scaleFactor = 150 / maxDim;
                     geometry.scale(scaleFactor, scaleFactor, scaleFactor);
 
-                    // Snap bottom to Z = 0 (Build Plate)
                     geometry.computeBoundingBox();
                     const minZ = geometry.boundingBox.min.z;
                     geometry.translate(0, 0, -minZ);
@@ -265,7 +277,6 @@
                         vertexColors: true 
                     });
 
-                    // Initialize vertex colors
                     const posCount = geometry.attributes.position.count;
                     const colors = new Float32Array(posCount * 3);
                     for (let i = 0; i < posCount * 3; i += 3) {
@@ -301,7 +312,6 @@
             });
         }
 
-        // Transform Buttons
         document.getElementById('snapBedBtn').addEventListener('click', () => {
             if(!currentMesh) return;
             currentMesh.geometry.computeBoundingBox();
@@ -325,43 +335,43 @@
         document.getElementById('rotYBtn').addEventListener('click', () => { if(currentMesh) currentMesh.rotation.y += Math.PI / 2; });
         document.getElementById('rotZBtn').addEventListener('click', () => { if(currentMesh) currentMesh.rotation.z += Math.PI / 2; });
 
-        // Editable Color Palette Slot Handlers
-        document.querySelectorAll('.color-slot').forEach(slot => {
-            const picker = slot.querySelector('.color-picker-input');
-            const nameInput = slot.querySelector('.name-input');
-
-            picker.addEventListener('input', (e) => {
-                const newColor = e.target.value;
-                slot.setAttribute('data-color', newColor);
-                if (slot.classList.contains('border-white')) {
-                    selectedColor = newColor;
-                }
-            });
-
-            slot.addEventListener('click', (e) => {
-                if(e.target.tagName === 'INPUT') return;
-                document.querySelectorAll('.color-slot').forEach(s => s.classList.remove('border-white', 'border-neutral-300'));
-                slot.classList.add('border-white');
-                selectedColor = slot.getAttribute('data-color');
+        // Preset Swatch Handlers
+        document.querySelectorAll('.color-preset').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.color-preset').forEach(b => b.classList.remove('border-white'));
+                btn.classList.add('border-white');
+                selectedColor = btn.getAttribute('data-color');
             });
         });
 
-        // True Connected Components (Mesh Islands) Analysis for Repeating Structures
+        // Advanced RGB 0-255 Input Handler
+        document.getElementById('applyRgbBtn').addEventListener('click', () => {
+            const r = parseInt(document.getElementById('rgbR').value) || 0;
+            const g = parseInt(document.getElementById('rgbG').value) || 0;
+            const b = parseInt(document.getElementById('rgbB').value) || 0;
+            
+            const hexR = r.toString(16).padStart(2, '0');
+            const hexG = g.toString(16).padStart(2, '0');
+            const hexB = b.toString(16).padStart(2, '0');
+            
+            selectedColor = `#${hexR}${hexG}${hexB}`.toUpperCase();
+            document.querySelectorAll('.color-preset').forEach(b => b.classList.remove('border-white'));
+        });
+
+        // Dynamic Connected Component Analysis
         document.getElementById('groupBtn').addEventListener('click', function() {
             if (!currentMesh) return;
-            showLoading(true, "Analyzing topological connected components & isolating structures...");
+            showLoading(true, "Analyzing topological connected components...");
 
             setTimeout(() => {
                 const geom = currentMesh.geometry;
                 const pos = geom.attributes.position;
                 const index = geom.index;
 
-                // Build face-vertex connectivity and find disconnected mesh islands
                 const triangleCount = index ? index.count / 3 : pos.count / 3;
                 const visited = new Uint8Array(triangleCount);
                 meshIslands = [];
 
-                // Vertex-to-triangle adjacency
                 const vertToTri = {};
                 for (let i = 0; i < triangleCount; i++) {
                     const i3 = i * 3;
@@ -375,7 +385,6 @@
                     });
                 }
 
-                // Flood fill to find islands
                 for (let i = 0; i < triangleCount; i++) {
                     if (visited[i]) continue;
                     const islandFaces = [];
@@ -415,7 +424,7 @@
             }, 500);
         });
 
-        // Click to Paint with True Island / Similar Structure Support
+        // Click to Paint Logic
         function onCanvasClick(event) {
             if (!currentMesh) return;
 
@@ -450,7 +459,6 @@
                 const indexAttr = currentMesh.geometry.index;
 
                 if (mode === 'single') {
-                    // Paint single clicked triangle face
                     const indices = indexAttr ? [
                         indexAttr.getX(faceIndex * 3),
                         indexAttr.getX(faceIndex * 3 + 1),
@@ -461,7 +469,6 @@
                     colorAttr.needsUpdate = true;
                 } 
                 else if (mode === 'similar') {
-                    // Find which island the clicked face belongs to
                     let targetIsland = null;
                     for (let island of meshIslands) {
                         if (island.includes(faceIndex)) {
@@ -471,10 +478,8 @@
                     }
 
                     if (targetIsland) {
-                        // Paint all triangles in this island and all similar-sized islands (e.g. all roses with matching triangle counts)
                         const targetSize = targetIsland.length;
                         meshIslands.forEach(island => {
-                            // Match islands within 15% triangle count similarity (groups identical repeating modules like roses/crystals)
                             if (Math.abs(island.length - targetSize) <= targetSize * 0.15) {
                                 island.forEach(fIdx => {
                                     const t3 = fIdx * 3;
@@ -491,8 +496,7 @@
                     }
                 } 
                 else if (mode === 'random') {
-                    const slots = document.querySelectorAll('.color-slot');
-                    const palette = Array.from(slots).map(s => new THREE.Color(s.getAttribute('data-color')));
+                    const palette = ["#FFFFFF", "#E53935", "#1E88E5", "#43A047", "#FB8C00", "#111111"].map(c => new THREE.Color(c));
                     for (let i = 0; i < colorAttr.count; i++) {
                         const randCol = palette[Math.floor(Math.random() * palette.length)];
                         colorAttr.setXYZ(i, randCol.r, randCol.g, randCol.b);
