@@ -3,11 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MeshPainter - Multi-Color STL Pattern Mapper (v0.4)</title>
+    <title>MeshPainter - Multi-Color STL Pattern Mapper (v0.5)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/STLLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/exporters/STLExporter.js"></script>
 </head>
 <body class="bg-[#1A1A1A] text-white h-screen flex flex-col overflow-hidden selection:bg-neutral-700 selection:text-white">
 
@@ -15,13 +16,16 @@
     <header class="bg-[#141414] border-b border-[#2d2d2d] px-6 py-4 flex justify-between items-center shadow-lg">
         <h1 class="text-lg font-bold tracking-wide flex items-center gap-3">
             <span class="w-3 h-3 bg-white rounded-full shadow-[0_0_8px_rgba(255,255,255,0.6)]"></span>
-            MeshPainter <span class="text-neutral-400 font-normal text-sm">v0.4</span>
+            MeshPainter <span class="text-neutral-400 font-normal text-sm">v0.5</span>
         </h1>
         <div class="flex items-center gap-4">
             <label class="bg-[#222222] hover:bg-[#333333] border border-[#444444] text-white px-4 py-2 rounded-lg cursor-pointer font-medium text-xs transition shadow">
                 Upload STL File
                 <input type="file" id="stlInput" accept=".stl" class="hidden">
             </label>
+            <button id="exportBtn" disabled class="bg-[#007ACC] hover:bg-[#0098FF] text-white px-4 py-2 rounded-lg font-medium text-xs transition shadow opacity-50 cursor-not-allowed">
+                Export Painted STL
+            </button>
         </div>
     </header>
 
@@ -61,56 +65,57 @@
 
             <hr class="border-[#2d2d2d]">
 
-            <!-- Section 2: Repeating Structure Detection & Component Indexing -->
+            <!-- Section 2: Repeating Structure Clustering & Component Indexing -->
             <div>
                 <h2 class="text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-2">2. Structure Clustering & Parts</h2>
                 <button id="groupBtn" disabled class="w-full bg-[#1a1a1a] text-neutral-500 border border-[#333333] py-2 px-3 rounded-lg text-xs font-medium transition cursor-not-allowed">
                     Analyze Repeating Elements
                 </button>
-                <div id="componentList" class="mt-2 flex flex-col gap-1.5 max-h-32 overflow-y-auto">
+                <div id="componentList" class="mt-2 flex flex-col gap-1.5 max-h-36 overflow-y-auto">
                     <p class="text-[11px] text-neutral-500 italic" id="groupStatus">Upload an STL model to enable structure analysis.</p>
                 </div>
             </div>
 
             <hr class="border-[#2d2d2d]">
 
-            <!-- Section 3: Labeled Color Palette -->
+            <!-- Section 3: Fully Editable Labeled Color Palette -->
             <div>
-                <h2 class="text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-2">3. Labeled Color Palette</h2>
-                <p class="text-[11px] text-neutral-400 mb-3">Select swatch for multi-material mapping.</p>
+                <h2 class="text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-2">3. Editable Color Palette Slots</h2>
+                <p class="text-[11px] text-neutral-400 mb-3">Customize color swatch and extruder name.</p>
                 
                 <div class="flex flex-col gap-2.5" id="paletteContainer">
-                    <button data-color="#FFFFFF" data-label="Extruder 1: Pure White" class="color-swatch flex items-center gap-3 p-2.5 rounded-lg bg-[#1a1a1a] border border-[#333333] hover:bg-[#222222] transition text-left ring-2 ring-white">
-                        <span class="w-5 h-5 rounded-full bg-white border border-neutral-600 shrink-0"></span>
-                        <div>
-                            <div class="text-xs font-bold text-neutral-100">Pure White</div>
-                            <div class="text-[10px] text-neutral-400">Slot 1</div>
+                    <!-- Slot 1 -->
+                    <div class="color-slot flex items-center gap-3 p-2 rounded-lg bg-[#1a1a1a] border border-white transition cursor-pointer" data-color="#FFFFFF">
+                        <input type="color" value="#FFFFFF" class="w-6 h-6 rounded bg-transparent border-0 cursor-pointer color-picker-input">
+                        <div class="flex-1">
+                            <input type="text" value="Pure White" class="bg-transparent text-xs font-bold text-neutral-100 w-full outline-none border-b border-transparent focus:border-neutral-500 name-input">
+                            <div class="text-[10px] text-neutral-400">Extruder Slot 1</div>
                         </div>
-                    </button>
-
-                    <button data-color="#E53935" data-label="Extruder 2: Accent Red" class="color-swatch flex items-center gap-3 p-2.5 rounded-lg bg-[#1a1a1a] border border-[#333333] hover:bg-[#222222] transition text-left">
-                        <span class="w-5 h-5 rounded-full bg-[#E53935] border border-neutral-600 shrink-0"></span>
-                        <div>
-                            <div class="text-xs font-bold text-neutral-100">Accent Red</div>
-                            <div class="text-[10px] text-neutral-400">Slot 2</div>
+                    </div>
+                    <!-- Slot 2 -->
+                    <div class="color-slot flex items-center gap-3 p-2 rounded-lg bg-[#1a1a1a] border border-[#333333] transition cursor-pointer" data-color="#E53935">
+                        <input type="color" value="#E53935" class="w-6 h-6 rounded bg-transparent border-0 cursor-pointer color-picker-input">
+                        <div class="flex-1">
+                            <input type="text" value="Accent Red" class="bg-transparent text-xs font-bold text-neutral-100 w-full outline-none border-b border-transparent focus:border-neutral-500 name-input">
+                            <div class="text-[10px] text-neutral-400">Extruder Slot 2</div>
                         </div>
-                    </button>
-
-                    <button data-color="#D4AF37" data-label="Extruder 3: Metallic Gold" class="color-swatch flex items-center gap-3 p-2.5 rounded-lg bg-[#1a1a1a] border border-[#333333] hover:bg-[#222222] transition text-left">
-                        <span class="w-5 h-5 rounded-full bg-[#D4AF37] border border-neutral-600 shrink-0"></span>
-                        <div>
-                            <div class="text-xs font-bold text-neutral-100">Metallic Gold</div>
-                            <div class="text-[10px] text-neutral-400">Slot 3</div>
+                    </div>
+                    <!-- Slot 3 -->
+                    <div class="color-slot flex items-center gap-3 p-2 rounded-lg bg-[#1a1a1a] border border-[#333333] transition cursor-pointer" data-color="#D4AF37">
+                        <input type="color" value="#D4AF37" class="w-6 h-6 rounded bg-transparent border-0 cursor-pointer color-picker-input">
+                        <div class="flex-1">
+                            <input type="text" value="Metallic Gold" class="bg-transparent text-xs font-bold text-neutral-100 w-full outline-none border-b border-transparent focus:border-neutral-500 name-input">
+                            <div class="text-[10px] text-neutral-400">Extruder Slot 3</div>
                         </div>
-                    </button>
-
-                    <button data-color="#111111" data-label="Extruder 4: Carbon Dark" class="color-swatch flex items-center gap-3 p-2.5 rounded-lg bg-[#1a1a1a] border border-[#333333] hover:bg-[#222222] transition text-left">
-                        <span class="w-5 h-5 rounded-full bg-[#111111] border border-neutral-600 shrink-0"></span>
-                        <div>
-                            <div class="text-xs font-bold text-neutral-100">Carbon Dark</div>
-                            <div class="text-[10px] text-neutral-400">Slot 4</div>
+                    </div>
+                    <!-- Slot 4 -->
+                    <div class="color-slot flex items-center gap-3 p-2 rounded-lg bg-[#1a1a1a] border border-[#333333] transition cursor-pointer" data-color="#111111">
+                        <input type="color" value="#111111" class="w-6 h-6 rounded bg-transparent border-0 cursor-pointer color-picker-input">
+                        <div class="flex-1">
+                            <input type="text" value="Carbon Dark" class="bg-transparent text-xs font-bold text-neutral-100 w-full outline-none border-b border-transparent focus:border-neutral-500 name-input">
+                            <div class="text-[10px] text-neutral-400">Extruder Slot 4</div>
                         </div>
-                    </button>
+                    </div>
                 </div>
             </div>
 
@@ -122,15 +127,15 @@
                 <div class="flex flex-col gap-2">
                     <label class="flex items-center gap-2.5 text-xs text-neutral-300 cursor-pointer">
                         <input type="radio" name="applyMode" value="single" checked class="accent-white">
-                        Paint Selected Triangle/Face
+                        Paint Clicked Face Only
                     </label>
                     <label class="flex items-center gap-2.5 text-xs text-neutral-300 cursor-pointer">
                         <input type="radio" name="applyMode" value="similar" class="accent-white">
-                        Repeat to All Similar Structures
+                        Repeat to All Similar Island Structures
                     </label>
                     <label class="flex items-center gap-2.5 text-xs text-neutral-300 cursor-pointer">
                         <input type="radio" name="applyMode" value="random" class="accent-white">
-                        Randomize Across Palette
+                        Randomize Across Palette Slots
                     </label>
                 </div>
             </div>
@@ -162,12 +167,13 @@
         let currentMesh = null;
         let selectedColor = "#FFFFFF";
         let setOnFaceMode = false;
+        let meshIslands = []; // Stores connected component triangle indices for modular painting
 
         function initViewer() {
             const container = document.getElementById('canvasContainer');
             
             scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x1A1A1A); // Snapmaker dark charcoal grey background matching reference[cite: 7]
+            scene.background = new THREE.Color(0x1A1A1A);[cite: 7]
 
             camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 5000);
             camera.position.set(0, 150, 300);
@@ -193,12 +199,11 @@
             dirLight2.position.set(-200, -200, -200);
             scene.add(dirLight2);
 
-            // High-visibility build plate grid
+            // High-visibility build plate grid & Axes
             const grid = new THREE.GridHelper(500, 50, 0x555555, 0x333333);
             grid.position.y = 0;
             scene.add(grid);
 
-            // Visible Axes Helper
             const axesHelper = new THREE.AxesHelper(100);
             scene.add(axesHelper);
 
@@ -226,7 +231,7 @@
             const file = e.target.files[0];
             if (!file) return;
 
-            showLoading(true, "Loading STL File...");
+            showLoading(true, "Loading STL File & Computing Geometry...");
 
             const reader = new FileReader();
             reader.readAsArrayBuffer(file);
@@ -254,13 +259,13 @@
                     if (currentMesh) scene.remove(currentMesh);
 
                     const material = new THREE.MeshStandardMaterial({ 
-                        color: 0xcccccc, 
+                        color: 0xffffff, 
                         roughness: 0.3, 
                         metalness: 0.2,
                         vertexColors: true 
                     });
 
-                    // Initialize vertex colors so palette painting works immediately
+                    // Initialize vertex colors
                     const posCount = geometry.attributes.position.count;
                     const colors = new Float32Array(posCount * 3);
                     for (let i = 0; i < posCount * 3; i += 3) {
@@ -274,7 +279,6 @@
                     scene.add(currentMesh);
 
                     enableControls(true);
-                    document.getElementById('groupStatus').innerText = "Model loaded successfully. Click 'Analyze Repeating Elements' to cluster.";
                     showLoading(false);
                 } catch(err) {
                     console.error(err);
@@ -285,13 +289,14 @@
         });
 
         function enableControls(enabled) {
-            const ids = ['snapBedBtn', 'setOnFaceBtn', 'rotXBtn', 'rotYBtn', 'rotZBtn', 'groupBtn'];
+            const ids = ['snapBedBtn', 'setOnFaceBtn', 'rotXBtn', 'rotYBtn', 'rotZBtn', 'groupBtn', 'exportBtn'];
             ids.forEach(id => {
                 const btn = document.getElementById(id);
                 btn.disabled = !enabled;
                 if(enabled) {
-                    btn.classList.remove('bg-[#1a1a1a]', 'text-neutral-500', 'cursor-not-allowed');
+                    btn.classList.remove('bg-[#1a1a1a]', 'text-neutral-500', 'cursor-not-allowed', 'opacity-50');
                     btn.classList.add('bg-[#1f1f1f]', 'hover:bg-[#2a2a2a]', 'text-neutral-200', 'cursor-pointer');
+                    if(id === 'exportBtn') btn.classList.add('bg-[#007ACC]', 'text-white');
                 }
             });
         }
@@ -304,7 +309,6 @@
             currentMesh.position.z -= minZ;
         });
 
-        // Set on Face interactive mode
         document.getElementById('setOnFaceBtn').addEventListener('click', () => {
             setOnFaceMode = !setOnFaceMode;
             const btn = document.getElementById('setOnFaceBtn');
@@ -321,45 +325,97 @@
         document.getElementById('rotYBtn').addEventListener('click', () => { if(currentMesh) currentMesh.rotation.y += Math.PI / 2; });
         document.getElementById('rotZBtn').addEventListener('click', () => { if(currentMesh) currentMesh.rotation.z += Math.PI / 2; });
 
-        // Color Swatch Selection
-        document.querySelectorAll('.color-swatch').forEach(button => {
-            button.addEventListener('click', function() {
-                document.querySelectorAll('.color-swatch').forEach(b => {
-                    b.classList.remove('ring-2', 'ring-white');
-                });
-                this.classList.add('ring-2', 'ring-white');
-                selectedColor = this.getAttribute('data-color');
+        // Editable Color Palette Slot Handlers
+        document.querySelectorAll('.color-slot').forEach(slot => {
+            const picker = slot.querySelector('.color-picker-input');
+            const nameInput = slot.querySelector('.name-input');
+
+            picker.addEventListener('input', (e) => {
+                const newColor = e.target.value;
+                slot.setAttribute('data-color', newColor);
+                if (slot.classList.contains('border-white')) {
+                    selectedColor = newColor;
+                }
+            });
+
+            slot.addEventListener('click', (e) => {
+                if(e.target.tagName === 'INPUT') return;
+                document.querySelectorAll('.color-slot').forEach(s => s.classList.remove('border-white', 'border-neutral-300'));
+                slot.classList.add('border-white');
+                selectedColor = slot.getAttribute('data-color');
             });
         });
 
-        // Repeating Structure Clustering & Component Indexing List
+        // True Connected Components (Mesh Islands) Analysis for Repeating Structures
         document.getElementById('groupBtn').addEventListener('click', function() {
             if (!currentMesh) return;
-            showLoading(true, "Analyzing topological islands & repeating structure clusters...");
+            showLoading(true, "Analyzing topological connected components & isolating structures...");
 
             setTimeout(() => {
-                document.getElementById('groupStatus').innerText = "";
+                const geom = currentMesh.geometry;
+                const pos = geom.attributes.position;
+                const index = geom.index;
+
+                // Build face-vertex connectivity and find disconnected mesh islands
+                const triangleCount = index ? index.count / 3 : pos.count / 3;
+                const visited = new Uint8Array(triangleCount);
+                meshIslands = [];
+
+                // Vertex-to-triangle adjacency
+                const vertToTri = {};
+                for (let i = 0; i < triangleCount; i++) {
+                    const i3 = i * 3;
+                    const a = index ? index.getX(i3) : i3;
+                    const b = index ? index.getX(i3+1) : i3+1;
+                    const c = index ? index.getX(i3+2) : i3+2;
+
+                    [a, b, c].forEach(v => {
+                        if (!vertToTri[v]) vertToTri[v] = [];
+                        vertToTri[v].push(i);
+                    });
+                }
+
+                // Flood fill to find islands
+                for (let i = 0; i < triangleCount; i++) {
+                    if (visited[i]) continue;
+                    const islandFaces = [];
+                    const queue = [i];
+                    visited[i] = 1;
+
+                    while (queue.length > 0) {
+                        const currTri = queue.pop();
+                        islandFaces.push(currTri);
+
+                        const t3 = currTri * 3;
+                        const ta = index ? index.getX(t3) : t3;
+                        const tb = index ? index.getX(t3+1) : t3+1;
+                        const tc = index ? index.getX(t3+2) : t3+2;
+
+                        [ta, tb, tc].forEach(v => {
+                            vertToTri[v].forEach(neighborTri => {
+                                if (!visited[neighborTri]) {
+                                    visited[neighborTri] = 1;
+                                    queue.push(neighborTri);
+                                }
+                            });
+                        });
+                    }
+                    meshIslands.push(islandFaces);
+                }
+
                 const listEl = document.getElementById('componentList');
                 listEl.innerHTML = `
-                    <div class="text-[11px] p-2 bg-[#1a1a1a] rounded border border-[#333333] cursor-pointer hover:border-white transition flex justify-between items-center" onclick="selectComponent('body')">
-                        <span>Center Spire & Body Set</span>
-                        <span class="text-neutral-400 text-[10px]">1 qty</span>
-                    </div>
-                    <div class="text-[11px] p-2 bg-[#1a1a1a] rounded border border-[#333333] cursor-pointer hover:border-white transition flex justify-between items-center" onclick="selectComponent('roses')">
-                        <span>Indexed Rose Modules</span>
-                        <span class="text-neutral-400 text-[10px]">178 qty</span>
+                    <div class="text-[11px] p-2 bg-[#1a1a1a] rounded border border-[#333333] flex justify-between items-center">
+                        <span>Discovered Mesh Islands</span>
+                        <span class="text-neutral-400 text-[10px]">${meshIslands.length} Total Groups</span>
                     </div>
                 `;
+                document.getElementById('groupStatus').innerText = `Analysis complete: Found ${meshIslands.length} independent structures.`;
                 showLoading(false);
-            }, 600);
+            }, 500);
         });
 
-        window.selectComponent = function(type) {
-            document.querySelectorAll('#componentList > div').forEach(d => d.classList.remove('border-white'));
-            event.currentTarget.classList.add('border-white');
-        };
-
-        // Click to Paint via Raycaster
+        // Click to Paint with True Island / Similar Structure Support
         function onCanvasClick(event) {
             if (!currentMesh) return;
 
@@ -377,7 +433,6 @@
                 const intersect = intersects[0];
                 
                 if (setOnFaceMode) {
-                    // Snap model rotation so the clicked face normal aligns flat to Z=0 bed
                     currentMesh.rotation.set(0, 0, 0);
                     currentMesh.geometry.computeBoundingBox();
                     currentMesh.position.z -= currentMesh.geometry.boundingBox.min.z;
@@ -391,31 +446,53 @@
                 const faceIndex = intersect.faceIndex;
                 const mode = document.querySelector('input[name="applyMode"]:checked').value;
                 const col = new THREE.Color(selectedColor);
-
                 const colorAttr = currentMesh.geometry.attributes.color;
                 const indexAttr = currentMesh.geometry.index;
 
                 if (mode === 'single') {
-                    // Paint single triangle face or local neighborhood
+                    // Paint single clicked triangle face
                     const indices = indexAttr ? [
                         indexAttr.getX(faceIndex * 3),
                         indexAttr.getX(faceIndex * 3 + 1),
                         indexAttr.getX(faceIndex * 3 + 2)
                     ] : [faceIndex * 3, faceIndex * 3 + 1, faceIndex * 3 + 2];
 
-                    indices.forEach(idx => {
-                        colorAttr.setXYZ(idx, col.r, col.g, col.b);
-                    });
+                    indices.forEach(idx => colorAttr.setXYZ(idx, col.r, col.g, col.b));
                     colorAttr.needsUpdate = true;
-                } else if (mode === 'similar') {
-                    // Batch paint all vertices across the model
-                    for (let i = 0; i < colorAttr.count; i++) {
-                        colorAttr.setXYZ(i, col.r, col.g, col.b);
+                } 
+                else if (mode === 'similar') {
+                    // Find which island the clicked face belongs to
+                    let targetIsland = null;
+                    for (let island of meshIslands) {
+                        if (island.includes(faceIndex)) {
+                            targetIsland = island;
+                            break;
+                        }
                     }
-                    colorAttr.needsUpdate = true;
-                } else if (mode === 'random') {
-                    // Randomize across available palette colors
-                    const palette = ["#FFFFFF", "#E53935", "#D4AF37", "#111111"].map(c => new THREE.Color(c));
+
+                    if (targetIsland) {
+                        // Paint all triangles in this island and all similar-sized islands (e.g. all roses with matching triangle counts)
+                        const targetSize = targetIsland.length;
+                        meshIslands.forEach(island => {
+                            // Match islands within 15% triangle count similarity (groups identical repeating modules like roses/crystals)
+                            if (Math.abs(island.length - targetSize) <= targetSize * 0.15) {
+                                island.forEach(fIdx => {
+                                    const t3 = fIdx * 3;
+                                    const ia = indexAttr ? indexAttr.getX(t3) : t3;
+                                    const ib = indexAttr ? indexAttr.getX(t3+1) : t3+1;
+                                    const ic = indexAttr ? indexAttr.getX(t3+2) : t3+2;
+                                    colorAttr.setXYZ(ia, col.r, col.g, col.b);
+                                    colorAttr.setXYZ(ib, col.r, col.g, col.b);
+                                    colorAttr.setXYZ(ic, col.r, col.g, col.b);
+                                });
+                            }
+                        });
+                        colorAttr.needsUpdate = true;
+                    }
+                } 
+                else if (mode === 'random') {
+                    const slots = document.querySelectorAll('.color-slot');
+                    const palette = Array.from(slots).map(s => new THREE.Color(s.getAttribute('data-color')));
                     for (let i = 0; i < colorAttr.count; i++) {
                         const randCol = palette[Math.floor(Math.random() * palette.length)];
                         colorAttr.setXYZ(i, randCol.r, randCol.g, randCol.b);
@@ -424,6 +501,25 @@
                 }
             }
         }
+
+        // Export Painted STL
+        document.getElementById('exportBtn').addEventListener('click', () => {
+            if (!currentMesh) return;
+            showLoading(true, "Generating STL Export...");
+
+            setTimeout(() => {
+                const exporter = new THREE.STLExporter();
+                const result = exporter.parse(currentMesh, { binary: true });
+                
+                const blob = new Blob([result], { type: 'application/octet-stream' });
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = 'painted_model_output.stl';
+                link.click();
+                
+                showLoading(false);
+            }, 300);
+        });
 
         document.getElementById('resetViewBtn').addEventListener('click', function() {
             camera.position.set(0, 150, 300);
