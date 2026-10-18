@@ -8,7 +8,7 @@
 /** @typedef {import('./model-data.js').ModelData} ModelData */
 /** @typedef {import('./filament-panel.js').Filament} Filament */
 /** @typedef {import('./region-growing.js').GrowParams} GrowParams */
-import { StructureEngine, EXCLUDE_ANGLE } from './structure-engine.js?v=6b2f672dbc';
+import { StructureEngine, EXCLUDE_ANGLE } from './structure-engine.js?v=17bfc877f1';
 /** @typedef {import('./structure-engine.js').Rule} Rule */
 /** @typedef {import('./structure-engine.js').StructureType} StructureType */
 import { inkFor } from './colors.js?v=0dda646d26';
@@ -24,8 +24,10 @@ import { inkFor } from './colors.js?v=0dda646d26';
  * @property {(msg: string, bad?: boolean) => void} toast
  * @property {(before: StructureType[], after: StructureType[]) => void} pushStructureUndo
  * @property {() => void} onLayerChanged
+ * @property {() => void} refreshHover the hover text changed while the mouse stood still
  */
 
+/** @typedef {import('./structure-match.js').SimilarMatch} SimilarMatch */
 /** @typedef {'add' | 'cut'} Mode */
 
 /** @param {string} s */
@@ -49,9 +51,16 @@ export class StructureController {
   hoverEpoch = new Uint32Array(0);
   epoch = 0;
   /**
-   * @type {{ mode: Mode; group: number; key: string; faces: number; refFaces: number; copies: number } | null}
+   * What the mouse is over: the structure, its copies, and (once the background
+   * search is done) the matches on other kinds of piece.
+   * @type {{ mode: Mode; group: number; key: string; faces: number; refFaces: number; copies: number; refRegion: number[]; seedRef: number; copyFaces: Uint32Array | null; similar: SimilarMatch[] | null } | null}
    */
   cache = null;
+  /** @type {Map<string, SimilarMatch[]>} matches found while hovering, by structure */
+  similarCache = new Map();
+  similarToken = 0;
+  /** @type {ReturnType<typeof setTimeout> | undefined} */
+  similarTimer;
   /** @type {Record<string, HTMLElement>} */
   els;
   matchToken = 0;
@@ -130,6 +139,7 @@ export class StructureController {
   /** @returns {void} */
   invalidateHover() {
     this.cache = null;
+    this.similarToken++;
   }
 
   /**
@@ -177,6 +187,8 @@ export class StructureController {
     this.engine = null;
     this.status = 'idle';
     this.cache = null;
+    this.similarToken++;
+    this.similarCache.clear();
     this.render();
   }
 
@@ -229,13 +241,80 @@ export class StructureController {
       this.host.viewer.setHighlight(pv.faces, mode === 'cut' ? 'cut' : 'add');
       this.epoch++;
       for (const f of pv.refRegion) this.hoverEpoch[f] = this.epoch;
-      this.cache = { mode, group: g, key, faces: pv.faces.length, refFaces: pv.refRegion.length, copies: pv.copies };
+      this.cache = { mode, group: g, key, faces: pv.faces.length, refFaces: pv.refRegion.length, copies: pv.copies, refRegion: pv.refRegion, seedRef: pv.seedRef, copyFaces: null, similar: null };
+      if (mode === 'add') {
+        this.cache.copyFaces = pv.faces.slice();
+        this.searchSimilar(this.cache, params);
+      }
     }
     const cc = this.cache;
     const t = this.activeType;
     const copies = cc.copies > 1 ? `on <b>${cc.copies}</b> identical pieces` : 'on this piece (no identical copies)';
     if (mode === 'cut') return `Cut out <b>${cc.refFaces.toLocaleString()}</b> triangles ${copies}${t ? ` from “${esc(t.name)}”` : ''} · click`;
-    return `Structure: <b>${cc.refFaces.toLocaleString()}</b> triangles ${copies} · click to add${t ? ` to “${esc(t.name)}”` : ''}`;
+    let similar = '';
+    if (cc.similar === null) similar = ' · looking for it on other pieces…';
+    else if (cc.similar.length) {
+      const n = cc.similar.reduce((sum, m) => sum + e.analysis.groups[m.group].members.length, 0);
+      similar = ` + <b>${n}</b> similar on other pieces`;
+    }
+    return `Structure: <b>${cc.refFaces.toLocaleString()}</b> triangles ${copies}${similar} · click to add${t ? ` to “${esc(t.name)}”` : ''}`;
+  }
+
+  /**
+   * Key of a hovered structure for the match cache.
+   * @param {number[]} region
+   * @param {GrowParams} params
+   * @returns {string}
+   */
+  similarKey(region, params) {
+    return `${region.length}:${region[0]}:${region[region.length - 1]}:${params.angle}/${params.radius}`;
+  }
+
+  /**
+   * Look for the hovered structure on the other kinds of piece in the background
+   * (after a short pause, so moving the mouse across the model stays smooth) and
+   * add the matches to the highlight.
+   * @param {NonNullable<StructureController['cache']>} hovered
+   * @param {GrowParams} params
+   * @returns {void}
+   */
+  searchSimilar(hovered, params) {
+    const e = this.engine;
+    const key = this.similarKey(hovered.refRegion, params);
+    const known = this.similarCache.get(key);
+    clearTimeout(this.similarTimer);
+    const token = ++this.similarToken;
+    if (known) {
+      this.showSimilar(hovered, known);
+      return;
+    }
+    const stop = () => token !== this.similarToken || this.cache !== hovered || this.engine !== e;
+    this.similarTimer = setTimeout(async () => {
+      if (stop()) return;
+      const matches = await e.findSimilar(hovered.refRegion, params, stop);
+      if (!matches) return;
+      if (this.similarCache.size > 40) this.similarCache.delete(this.similarCache.keys().next().value);
+      this.similarCache.set(key, matches);
+      if (!stop()) {
+        this.showSimilar(hovered, matches);
+        this.host.refreshHover();
+      }
+    }, 200);
+  }
+
+  /**
+   * @param {NonNullable<StructureController['cache']>} hovered
+   * @param {SimilarMatch[]} matches
+   * @returns {void}
+   */
+  showSimilar(hovered, matches) {
+    hovered.similar = matches;
+    if (!matches.length || !hovered.copyFaces) return;
+    const extra = this.engine.mapMatches(matches);
+    const all = new Uint32Array(hovered.copyFaces.length + extra.length);
+    all.set(hovered.copyFaces);
+    all.set(extra, hovered.copyFaces.length);
+    this.host.viewer.setHighlight(all, 'add');
   }
 
   /** @returns {void} */
@@ -270,13 +349,16 @@ export class StructureController {
         t = e.newType(`Structure ${e.types.length + 1}`, this.defaultRule());
         this.activeId = t.id;
       }
-      changed = e.addSelection(t, face, this.params);
+      // add what is highlighted (and the matches already found for it)
+      const hovered = this.cache?.mode === 'add' && this.cache.refRegion.includes(e.analysis.corr[face]) ? this.cache : null;
+      const known = hovered?.similar ?? null;
+      changed = e.addSelection(t, face, this.params, hovered?.seedRef);
       if (!changed) this.host.toast(`That is already part of “${t.name}”. Shift+click removes it.`);
       else {
         this.applyLayer();
         this.invalidateHover();
         this.render();
-        void this.findOnOtherPieces(t, before);
+        void this.findOnOtherPieces(t, before, known ?? undefined);
         return;
       }
     }
@@ -288,24 +370,32 @@ export class StructureController {
   }
 
   /**
-   * After a click: look for the same structure on the other kinds of piece.
+   * After a click: look for the same structure on the other kinds of piece
+   * (or use the matches already found while hovering).
    * @param {StructureType} t
    * @param {StructureType[]} before
+   * @param {SimilarMatch[]} [known]
    * @returns {Promise<void>}
    */
-  async findOnOtherPieces(t, before) {
+  async findOnOtherPieces(t, before, known) {
     const e = this.engine;
     const sel = t.selections[t.selections.length - 1];
     const token = ++this.matchToken;
     const stop = () => token !== this.matchToken || this.engine !== e;
     this.matchText = 'Looking for it on the other pieces…';
     this.renderStatus();
-    const found = await e.autoMatch(t, sel, stop, (d, n) => {
-      if (stop()) return;
-      this.matchText = `Looking for it on the other pieces… ${d}/${n}`;
-      this.els.status.textContent = this.matchText;
-      this.els.status.hidden = false;
-    });
+    const found = await e.autoMatch(
+      t,
+      sel,
+      stop,
+      (d, n) => {
+        if (stop()) return;
+        this.matchText = `Looking for it on the other pieces… ${d}/${n}`;
+        this.els.status.textContent = this.matchText;
+        this.els.status.hidden = false;
+      },
+      known,
+    );
     if (this.engine !== e) return;
     if (token === this.matchToken) this.matchText = '';
     if (found.kinds) {

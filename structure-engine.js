@@ -1,14 +1,16 @@
 /**
  * Structure types ("Rose", "Spike"...): each is a list of selections made on a
- * group's reference piece (seed face + growth settings, minus excluded parts),
- * mapped onto every identical piece of that group, and coloured by a rule.
- * The result is a paint layer (one byte per face) shown over the manual paint.
+ * group's reference piece (a picked structure, minus excluded parts, or the faces
+ * a match on another kind of piece covers), mapped onto every identical piece of
+ * that group, and coloured by a rule. The result is a paint layer (one byte per
+ * face) shown over the manual paint.
  */
 /** @typedef {import('./piece-analysis.js').Analysis} Analysis */
 import { RegionGrower } from './region-growing.js?v=5d033f3571';
-import { cutStructure, structureTop } from './structure-cut.js?v=b5d24b59a7';
+import { cutStructure } from './structure-cut.js?v=7dc0dc41d9';
 /** @typedef {import('./region-growing.js').GrowParams} GrowParams */
-import { makeShape, matchShapes } from './piece-matching.js?v=f6f03e4619';
+import { SimilarFinder } from './structure-match.js?v=29e28ec441';
+/** @typedef {import('./structure-match.js').SimilarMatch} SimilarMatch */
 
 /**
  * @typedef {| { kind: 'single'; filament: number }
@@ -29,6 +31,7 @@ import { makeShape, matchShapes } from './piece-matching.js?v=f6f03e4619';
  * @property {GrowParams} params
  * @property {Exclusion[]} excludes
  * @property {boolean} [auto] found by shape matching rather than clicked
+ * @property {number[]} [faces] for matches: the faces of the reference piece it covers
  */
 
 /**
@@ -51,13 +54,6 @@ import { makeShape, matchShapes } from './piece-matching.js?v=f6f03e4619';
  */
 
 export const EXCLUDE_ANGLE = 12;
-
-/**
- * A structure found on another kind of piece is accepted when this fraction of
- * its surface lies on the picked structure's surface, and the other way round
- * (the outlines of two grown regions never agree exactly).
- */
-const AUTO_MATCH = 0.85;
 
 /**
  * Small deterministic PRNG (mulberry32).
@@ -96,6 +92,10 @@ export class StructureEngine {
   indices;
   /** @type {Uint32Array} */
   buffer;
+  /** @type {SimilarFinder} */
+  finder;
+  /** @type {Map<string, number[]>} picked structures by seed and settings */
+  cache = new Map();
   nextId = 1;
 
   /**
@@ -109,6 +109,7 @@ export class StructureEngine {
     this.analysis = analysis;
     const F = indices.length / 3;
     this.grower = new RegionGrower(positions, indices, analysis.neighbors, analysis.pieces.pieceOfFace);
+    this.finder = new SimilarFinder(positions, indices, analysis, this.grower);
     this.mask = new Uint8Array(F);
     this.layer = new Uint8Array(F);
     this.buffer = new Uint32Array(F);
@@ -124,6 +125,7 @@ export class StructureEngine {
     this.positions = positions;
     this.indices = indices;
     this.grower = new RegionGrower(positions, indices, this.analysis.neighbors, this.analysis.pieces.pieceOfFace);
+    this.finder = new SimilarFinder(positions, indices, this.analysis, this.grower);
   }
 
   /**
@@ -135,17 +137,15 @@ export class StructureEngine {
   }
 
   /**
-   * Region on the reference piece, after removing excluded parts.
-   * @param {number} seedRef
-   * @param {GrowParams} params
-   * @param {Exclusion[]} [excludes]
+   * Region of a selection on its group's reference piece, after removing excluded parts.
+   * @param {Selection} s
    * @returns {number[]}
    */
-  refRegion(seedRef, params, excludes = []) {
-    const region = this.structureAt(seedRef, params);
-    if (!excludes.length) return region;
+  selectionRegion(s) {
+    const region = s.faces ?? this.structureAt(s.seedRef, s.params);
+    if (!s.excludes.length) return region;
     const cut = new Set();
-    for (const ex of excludes) for (const f of this.grower.grow(ex.seedRef, ex.params)) cut.add(f);
+    for (const ex of s.excludes) for (const f of this.grower.grow(ex.seedRef, ex.params)) cut.add(f);
     return region.filter((f) => !cut.has(f));
   }
 
@@ -155,15 +155,16 @@ export class StructureEngine {
    * and the reference region (for caching by the caller).
    * @param {number} face
    * @param {GrowParams} params
-   * @returns {{ faces: Uint32Array; refRegion: number[]; group: number; copies: number }}
+   * @returns {{ faces: Uint32Array; refRegion: number[]; group: number; copies: number; seedRef: number }}
    */
   preview(face, params, cut = false) {
     const a = this.analysis;
     const g = this.groupOfFace(face);
     const group = a.groups[g];
-    const refRegion = cut ? this.grower.grow(a.corr[face], params) : this.structureAt(a.corr[face], params);
+    const seedRef = a.corr[face];
+    const refRegion = cut ? this.grower.grow(seedRef, params) : this.structureAt(seedRef, params);
     const n = this.mapRegion(refRegion, group.members);
-    return { faces: this.buffer.subarray(0, n), refRegion, group: g, copies: group.members.length };
+    return { faces: this.buffer.subarray(0, n), refRegion, group: g, copies: group.members.length, seedRef };
   }
 
   /**
@@ -215,7 +216,7 @@ export class StructureEngine {
     for (let i = 0; i < t.selections.length; i++) {
       const s = t.selections[i];
       if (s.group !== g) continue;
-      if (this.refRegion(s.seedRef, s.params, s.excludes).includes(r)) return i;
+      if (this.selectionRegion(s).includes(r)) return i;
     }
     return -1;
   }
@@ -224,11 +225,12 @@ export class StructureEngine {
    * @param {StructureType} t
    * @param {number} face
    * @param {GrowParams} params
+   * @param {number} [seedRef] the reference face the highlighted structure was picked from
    * @returns {boolean}
    */
-  addSelection(t, face, params) {
+  addSelection(t, face, params, seedRef = this.analysis.corr[face]) {
     if (this.selectionAt(t, face) >= 0) return false;
-    t.selections.push({ group: this.groupOfFace(face), seedRef: this.analysis.corr[face], params: { ...params }, excludes: [] });
+    t.selections.push({ group: this.groupOfFace(face), seedRef, params: { ...params }, excludes: [] });
     return true;
   }
 
@@ -290,7 +292,7 @@ export class StructureEngine {
       const list = [];
       for (const s of t.selections) {
         const group = a.groups[s.group];
-        const region = this.refRegion(s.seedRef, s.params, s.excludes);
+        const region = this.selectionRegion(s);
         for (const p of group.members) {
           const n = this.mapRegion(region, [p]);
           if (!n) continue;
@@ -353,105 +355,89 @@ export class StructureEngine {
   }
 
   /**
-   * The structure under a face of a reference piece.
+   * The structure under a face of a reference piece (remembered per seed and settings).
    * @param {number} seed
    * @param {GrowParams} params
    * @returns {number[]}
    */
   structureAt(seed, params) {
-    return cutStructure(this.grower, seed, params);
-  }
-
-  /**
-   * Tops of the raised features of a piece whose height above the plate is
-   * within `tol` mm of `height`: faces spread over the piece each climb to their
-   * local top; tops closer than `spacing` to an earlier one are dropped.
-   * @param {number} piece
-   * @param {number} height
-   * @param {number} tol
-   * @param {number} spacing
-   * @param {number} reach climbing reach (mm)
-   * @returns {number[]}
-   */
-  featureTops(piece, height, tol, spacing, reach) {
-    const pt = this.analysis.pieces;
-    const minZ = this.analysis.stats[piece].min[2];
-    const s = pt.pieceStart[piece], e = pt.pieceStart[piece + 1];
-    const step = Math.max(1, Math.floor((e - s) / 48));
-    /** @type {number[]} */
-    const tops = [];
-    /** @type {[number, number, number][]} */
-    const at = [];
-    for (let k = s; k < e; k += step) {
-      const f = pt.pieceFaces[k];
-      if (this.grower.centroid(f)[2] - minZ < height - tol) continue; // too low to climb to the height
-      const top = structureTop(this.grower, f, reach);
-      const c = this.grower.centroid(top);
-      if (Math.abs(c[2] - minZ - height) > tol) continue;
-      if (at.some((o) => Math.hypot(o[0] - c[0], o[1] - c[1], o[2] - c[2]) < spacing)) continue;
-      tops.push(top);
-      at.push(c);
+    const key = `${seed}|${params.angle}|${params.radius}`;
+    let region = this.cache.get(key);
+    if (!region) {
+      region = cutStructure(this.grower, seed, params);
+      if (this.cache.size > 300) this.cache.delete(this.cache.keys().next().value);
+      this.cache.set(key, region);
     }
-    return tops;
+    return region;
   }
 
   /**
-   * Look for the structure of `sel` on every kind of piece that does not have
-   * this structure type yet: on each raised feature about as high above the plate
-   * as the picked structure, pick the structure there and accept it when its shape
-   * lines up with the picked one (rotation about Z + translation).
-   * Adds the matches to `t` and returns how many pieces they cover.
+   * Look for a structure (faces on a reference piece) on the other kinds of
+   * piece, and elsewhere on its own piece. See structure-match.js.
+   * @param {number[]} region
+   * @param {GrowParams} params
+   * @param {() => boolean} stop
+   * @param {(done: number, total: number) => void} [onProgress]
+   * @returns {Promise<SimilarMatch[] | null>} null when stopped
+   */
+  findSimilar(region, params, stop, onProgress) {
+    return this.finder.find(region, params.radius, new Set(), stop, onProgress);
+  }
+
+  /**
+   * Faces to highlight for matches: each match mapped onto every identical piece of its group.
+   * @param {SimilarMatch[]} matches
+   * @returns {Uint32Array}
+   */
+  mapMatches(matches) {
+    /** @type {Uint32Array[]} */
+    const parts = [];
+    let total = 0;
+    for (const m of matches) {
+      const n = this.mapRegion(m.faces, this.analysis.groups[m.group].members);
+      parts.push(this.buffer.slice(0, n));
+      total += n;
+    }
+    const out = new Uint32Array(total);
+    let o = 0;
+    for (const p of parts) {
+      out.set(p, o);
+      o += p.length;
+    }
+    return out;
+  }
+
+  /**
+   * Add matches of selection `sel` to type t (skipping places t already has).
+   * Searches first unless the matches are given. Returns how many places were
+   * added and how many pieces they cover.
    * @param {StructureType} t
    * @param {Selection} sel
    * @param {() => boolean} stop
    * @param {(done: number, total: number) => void} [onProgress]
+   * @param {SimilarMatch[]} [known] matches found while hovering
    * @returns {Promise<{ kinds: number; pieces: number }>}
    */
-  async autoMatch(t, sel, stop, onProgress) {
+  async autoMatch(t, sel, stop, onProgress, known) {
     const a = this.analysis;
-    const P = this.positions, I = this.indices;
-    const region = this.refRegion(sel.seedRef, sel.params, sel.excludes);
-    if (region.length < 20) return { kinds: 0, pieces: 0 };
-    const target = makeShape(P, I, Uint32Array.from(region));
-    // height of the picked structure's top above the plate
-    const refPiece = a.pieces.pieceOfFace[sel.seedRef];
-    let topZ = -Infinity;
-    for (const f of region) topZ = Math.max(topZ, this.grower.centroid(f)[2]);
-    const height = topZ - a.stats[refPiece].min[2];
-    const R = sel.params.radius;
-    const covered = this.coveredGroups(t);
-    /** @type {number[]} */
-    const todo = [];
-    a.groups.forEach((g, i) => {
-      if (!covered.has(i) && a.stats[g.ref].area >= target.area * 0.5) todo.push(i);
-    });
+    const matches = known ?? (await this.findSimilar(this.selectionRegion(sel), sel.params, stop, onProgress));
+    if (!matches) return { kinds: 0, pieces: 0 };
     let kinds = 0, pieces = 0;
-    for (let k = 0; k < todo.length; k++) {
-      if (stop()) break;
-      onProgress?.(k, todo.length);
-      await new Promise((r) => setTimeout(r, 0));
-      if (stop()) break;
-      const gi = todo[k];
-      const g = a.groups[gi];
-      let found = false;
-      for (const seed of this.featureTops(g.ref, height, Math.max(1.5, 0.2 * height), 0.7 * R, 0.7 * R)) {
-        const cand = this.structureAt(seed, sel.params);
-        if (cand.length < 10) continue;
-        const shape = makeShape(P, I, Uint32Array.from(cand));
-        // similar size (by area, so simplified meshes compare fairly), then similar shape
-        const ratio = shape.area / target.area;
-        if (ratio < 0.7 || ratio > 1.4) continue;
-        const m = matchShapes(shape, target, P, I, { minInside: AUTO_MATCH });
-        if (m.inside < AUTO_MATCH) continue;
-        t.selections.push({ group: gi, seedRef: seed, params: { ...sel.params }, excludes: [], auto: true });
-        found = true;
-      }
-      if (found) {
-        kinds++;
-        pieces += g.members.length;
-      }
+    for (const m of matches) {
+      // already part of this type?
+      const mine = new Set(m.faces);
+      const dup = t.selections.some((s) => {
+        if (s.group !== m.group) return false;
+        let n = 0;
+        const r = this.selectionRegion(s);
+        for (const f of r) if (mine.has(f)) n++;
+        return n > 0.3 * Math.min(r.length, mine.size);
+      });
+      if (dup) continue;
+      t.selections.push({ group: m.group, seedRef: m.anchor, params: { ...sel.params }, excludes: [], auto: true, faces: m.faces });
+      kinds++;
+      pieces += a.groups[m.group].members.length;
     }
-    onProgress?.(todo.length, todo.length);
     return { kinds, pieces };
   }
 

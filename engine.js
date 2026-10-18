@@ -16,7 +16,7 @@ import { decodePaint, encodePaint, isLeaf, paintAtBarycentric, barycentricIn } f
 /** @typedef {import('./paint-codec.js').PaintNode} PaintNode */
 /** @typedef {import('./paint-codec.js').Vec3} Vec3 */
 /** @typedef {import('./worker-client.js').ExportResult} ExportResult */
-import { StructureController } from './structure-panel.js?v=eeb3b9bef2';
+import { StructureController } from './structure-panel.js?v=d74ffbf1c2';
 /** @typedef {import('./structure-engine.js').StructureType} StructureType */
 
 /** @typedef {'orbit' | 'structure' | 'pencil' | 'fine' | 'eraser'} Tool */
@@ -36,7 +36,7 @@ import { StructureController } from './structure-panel.js?v=eeb3b9bef2';
  * @typedef {{ kind: 'paint'; changes: Change[] } | { kind: 'structures'; before: StructureType[]; after: StructureType[] }} UndoEntry
  */
 
-import { VERSION } from './version.js?v=8a54183a1c';
+import { VERSION } from './version.js?v=cee40284bd';
 
 /**
  * Shorthand for document.getElementById (typed loosely: the elements are known from index.html).
@@ -90,6 +90,7 @@ const structures = new StructureController({
     pushUndo({ kind: 'structures', before, after });
   },
   onLayerChanged: () => scheduleUsage(),
+  refreshHover: () => queueFrame(),
 });
 
 /** @param {UndoEntry} e */
