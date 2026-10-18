@@ -3,15 +3,13 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <title>MeshPainter - Multi-Color 3MF Pattern Mapper v0.2.0</title>
+    <title>MeshPainter - Multi-Color 3MF Pattern Mapper v0.2.1</title>
     <meta name="description" content="Multi-colour painting for 3D print models. Opens STL and 3MF, paints per triangle, exports a painted 3MF for Orca, Bambu Studio and PrusaSlicer. Runs entirely in your browser." />
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect x='1' y='3' width='3' height='12' rx='1' fill='%2300A63F'/%3E%3Crect x='5' y='6' width='3' height='9' rx='1' fill='%23C8281E'/%3E%3Crect x='9' y='1' width='3' height='14' rx='1' fill='%23F4E22A'/%3E%3Crect x='13' y='8' width='2' height='7' rx='1' fill='%2357C3CC'/%3E%3C/svg%3E" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&family=JetBrains+Mono:wght@400;500&display=swap" />
-    <script type="module" crossorigin src="./engine.js?v=9d200b2d39"></script>
-    <link rel="modulepreload" crossorigin href="./three.js?v=87a985e77d">
-    <link rel="stylesheet" crossorigin href="./style.css?v=524e4f5654">
+    <link rel="stylesheet" href="./style.css?v=a9062b9df8" />
   </head>
   <body>
     <div class="app" id="app">
@@ -19,7 +17,7 @@
         <div class="brand">
           <span class="brand-mark" id="brand-mark" aria-hidden="true"></span>
           <span class="brand-name">Mesh Painter</span>
-          <span class="brand-version">v0.2.0</span>
+          <span class="brand-version">v0.2.1</span>
         </div>
         <div class="file-info">
           <span class="file-name" id="file-name">Sample chain</span>
@@ -147,5 +145,6 @@
       </main>
     </div>
     <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+    <script type="module" src="./engine.js?v=81aa1e88aa"></script>
   </body>
 </html>

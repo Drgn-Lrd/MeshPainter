@@ -1,149 +1,953 @@
-import{S as Vt,P as Te,G as Ee,V as H,W as Ae,R as Re,U as jt,B as He,a as ze,O as Pe,C as et,M as st,T as St,D as Oe,b as Ie,N as Gt,c as Wt,d as _t,e as Xt,f as $t,g as Be,h as ut,F as pt,i as qe,j as Ne,k as Ue,L as De,l as Ve,m as je,n as Ge,o as Z,p as We}from"./three.js?v=87a985e77d";const N=255,mt=16;function ie(s,t){const e=new Uint8Array(t);e.fill(1);for(const i of s)e.fill(Math.max(1,Math.min(255,i.extruder)),i.firstFace,i.firstFace+i.faceCount);return e}function _e(s,t){let e=0,i=s.length-1;for(;e<i;){const n=e+i+1>>1;s[n].firstFace<=t?e=n:i=n-1}return e}function Xe(s){return[s.positions.buffer,s.indices.buffer,s.faceState.buffer]}const oe=33,Ye="0123456789ABCDEF";function _(s){return s.s!==void 0}function Ke(s){if(s>=48&&s<=57)return s-48;if(s>=65&&s<=70)return s-55;if(s>=97&&s<=102)return s-87;throw new Error(`invalid character '${String.fromCharCode(s)}' in paint string`)}class Lt extends Error{}function ae(s){let t=s.length-1;const e=()=>{if(t<0)throw new Lt(`paint string "${s}" ended early`);return Ke(s.charCodeAt(t--))},i=a=>{if(a>40)throw new Lt("paint tree too deep");const o=e(),r=o&3;if(r===0){if((o&12)!==12)return{s:o>>2};const d=e();return d!==15?{s:d+3}:{s:e()+18}}const c=r+1,l=new Array(c);for(let d=c-1;d>=0;d--)l[d]=i(a+1);return{split:r,special:o>>2,c:l}},n=i(0);if(t>=0){for(let a=0;a<=t;a++)if(s.charCodeAt(a)!==48)throw new Lt(`paint string "${s}" has ${t+1} unused characters`)}return n}function re(s){const t=[],e=n=>{if(_(n)){const a=n.s;if(a<0||a>oe||!Number.isInteger(a))throw new Error(`invalid paint state ${a}`);a<3?t.push(a<<2):a-3<15?t.push(12,a-3):t.push(12,15,a-18);return}t.push(n.split&3|(n.special&3)<<2);for(let a=n.split;a>=0;a--)e(n.c[a])};e(s);let i="";for(let n=t.length-1;n>=0;n--)i+=Ye[t[n]];return i}function Ze(s){return s===0?"":re({s})}const Je=[];for(let s=0;s<=oe;s++)Je.push(Ze(s));function J(s,t){return[(s[0]+t[0])*.5,(s[1]+t[1])*.5,(s[2]+t[2])*.5]}function ce(s,t,e,i,n){const a=[e,i,n],o=s===3?0:t%3,r=a[o],c=a[(o+1)%3],l=a[(o+2)%3];if(s===1){const p=J(l,c);return[[r,c,p],[p,l,r]]}if(s===2){const p=J(c,r),m=J(r,l);return[[r,p,m],[p,c,m],[c,l,m]]}const d=J(c,r),h=J(l,c),u=J(r,l);return[[r,d,u],[d,c,h],[h,l,u],[d,h,u]]}function le(s,t,e,i,n,a=0){if(_(s)){n(s.s,t,e,i,a);return}const o=ce(s.split,s.special,t,e,i);for(let r=0;r<o.length;r++){const c=o[r];le(s.c[r],c[0],c[1],c[2],n,a+1)}}function he(s){if(_(s))return s;const t=s.c.map(he),e=t[0];return _(e)&&t.every(i=>_(i)&&i.s===e.s)?{s:e.s}:{split:s.split,special:s.special,c:t}}function Qe(s,t,e,i){const n=(a,o,r,c,l)=>{if(_(a)){if(l>=i)return{s:e};a={split:3,special:0,c:[{s:a.s},{s:a.s},{s:a.s},{s:a.s}]}}const d=a,h=ce(d.split,d.special,o,r,c),u=ts(h,t),p=d.c.slice();return p[u]=n(p[u],h[u][0],h[u][1],h[u][2],l+1),{split:d.split,special:d.special,c:p}};return he(n(s,[1,0,0],[0,1,0],[0,0,1],0))}function ts(s,t){let e=0,i=-1/0;for(let n=0;n<s.length;n++){const a=de(s[n][0],s[n][1],s[n][2],t),o=Math.min(a[0],a[1],a[2]);o>i&&(i=o,e=n)}return e}function de(s,t,e,i){const n=t[0]-s[0],a=t[1]-s[1],o=t[2]-s[2],r=e[0]-s[0],c=e[1]-s[1],l=e[2]-s[2],d=i[0]-s[0],h=i[1]-s[1],u=i[2]-s[2],p=n*n+a*a+o*o,m=n*r+a*c+o*l,v=r*r+c*c+l*l,g=d*n+h*a+u*o,w=d*r+h*c+u*l,y=p*v-m*m;if(y===0)return[1/3,1/3,1/3];const x=(v*g-m*w)/y,b=(p*w-m*g)/y;return[1-x-b,x,b]}const it=34,ue=`
-vec3 toLinear(vec3 c) { return pow(c, vec3(2.2)); }
-vec3 toSrgb(vec3 c) { return pow(c, vec3(1.0 / 2.2)); }
-vec3 shade(vec3 srgb, vec3 view) {
-  vec3 n = normalize(cross(dFdx(view), dFdy(view)));
-  vec3 v = normalize(-view);
-  if (dot(n, v) < 0.0) n = -n;
-  vec3 base = toLinear(srgb);
-  vec3 key = normalize(vec3(-0.45, 0.65, 0.6));
-  float kd = max(dot(n, key), 0.0);
-  float hd = max(dot(n, v), 0.0);
-  float rim = pow(1.0 - hd, 3.0);
-  vec3 h = normalize(key + v);
-  float spec = pow(max(dot(n, h), 0.0), 40.0) * 0.12;
-  vec3 c = base * (0.16 + 0.55 * kd + 0.38 * hd) + vec3(spec) + base * rim * 0.12;
-  return toSrgb(c);
+/**
+ * Mesh Painter: the page itself. Wires the filament panel, tools, painting,
+ * structure mode, file opening and export together. The heavy work happens in
+ * model-worker.js (files, export, analysis) and viewer.js (3D view).
+ */
+import { Viewer } from './viewer.js?v=da2fac7054';
+import { ModelWorker } from './worker-client.js?v=14100a083e';
+import { FilamentPanel, DEFAULT_FILAMENTS } from './filament-panel.js?v=9ecc609c0a';
+/** @typedef {import('./filament-panel.js').Filament} Filament */
+import { BASIC_COLORS, nearestColorName } from './colors.js?v=0dda646d26';
+import { makeSampleModel } from './sample-model.js?v=54e4167854';
+import { saveBlob } from './save-file.js?v=f98773da6b';
+import { SUBDIV, MAX_FILAMENTS, buildFaceDefaults, partOfFace } from './model-data.js?v=bb5fb4d3b6';
+/** @typedef {import('./model-data.js').ModelData} ModelData */
+import { decodePaint, encodePaint, isLeaf, paintAtBarycentric, barycentricIn } from './paint-codec.js?v=0d8bec0312';
+/** @typedef {import('./paint-codec.js').PaintNode} PaintNode */
+/** @typedef {import('./paint-codec.js').Vec3} Vec3 */
+/** @typedef {import('./worker-client.js').ExportResult} ExportResult */
+import { StructureController } from './structure-panel.js?v=5c24a8f849';
+/** @typedef {import('./structure-engine.js').StructureType} StructureType */
+
+/** @typedef {'orbit' | 'structure' | 'pencil' | 'fine' | 'eraser'} Tool */
+
+/**
+ * @typedef {object} Change
+ * @property {number} face
+ * @property {number} before
+ * @property {string} [beforeSub]
+ * @property {number} beforeManual
+ * @property {number} after
+ * @property {string} [afterSub]
+ * @property {number} afterManual
+ */
+
+/**
+ * @typedef {{ kind: 'paint'; changes: Change[] } | { kind: 'structures'; before: StructureType[]; after: StructureType[] }} UndoEntry
+ */
+
+import { VERSION } from './version.js?v=4d0757cc81';
+
+/**
+ * Shorthand for document.getElementById (typed loosely: the elements are known from index.html).
+ * @param {string} id
+ * @returns {any}
+ */
+const $ = (id) => document.getElementById(id);
+
+const state = {
+  filaments: /** @type {Filament[]} */ (DEFAULT_FILAMENTS.map((f) => ({ ...f }))),
+  active: 2,
+  tool: /** @type {Tool} */ ('orbit'),
+  model: /** @type {ModelData | null} */ (null),
+  isSample: false,
+  defaults: /** @type {Uint8Array} */ (new Uint8Array(0)),
+  busy: false,
+  /** model arrays are lent to the worker: do not read them */
+  exporting: false,
+  usage: /** @type {number[]} */ ([]),
+  /** faces painted by hand in this session; hand paint wins over structure paint */
+  manual: /** @type {Uint8Array} */ (new Uint8Array(0)),
+  altDown: false,
+};
+
+/** @type {Viewer} */
+let viewer;
+try {
+  viewer = new Viewer($('viewer'));
+} catch (err) {
+  // Without 3D graphics nothing can be shown: explain why instead of leaving a dead page.
+  showGraphicsProblem(err, false);
+  throw err;
 }
-`,es=`
-precision highp float;
-precision highp int;
-uniform mat4 modelViewMatrix;
-uniform mat4 projectionMatrix;
-uniform int uFaceOffset;
-in vec3 position;
-flat out int vFace;
-out vec3 vView;
-void main() {
-  vFace = uFaceOffset + gl_VertexID / 3;
-  vec4 mv = modelViewMatrix * vec4(position, 1.0);
-  vView = mv.xyz;
-  gl_Position = projectionMatrix * mv;
+const worker = new ModelWorker();
+/** @type {UndoEntry[]} */
+const undoStack = [];
+/** @type {UndoEntry[]} */
+const redoStack = [];
+/** @type {Map<number, Change> | null} */
+let stroke = null;
+
+const structures = new StructureController({
+  viewer,
+  worker,
+  model: () => state.model,
+  filaments: () => state.filaments,
+  activeFilament: () => state.active,
+  manual: () => state.manual,
+  toast: (m, bad) => toast(m, bad),
+  pushStructureUndo(before, after) {
+    pushUndo({ kind: 'structures', before, after });
+  },
+  onLayerChanged: () => scheduleUsage(),
+});
+
+/** @param {UndoEntry} e */
+function pushUndo(e) {
+  undoStack.push(e);
+  if (undoStack.length > 200) undoStack.shift();
+  redoStack.length = 0;
+  updateUndoButtons();
 }
-`,ss=`
-precision highp float;
-precision highp int;
-precision highp usampler2D;
-uniform usampler2D uState;
-uniform int uTexW;
-uniform vec3 uPalette[${it}];
-uniform int uHover;
-uniform vec3 uHoverColor;
-uniform vec3 uHighlightColor;
-flat in int vFace;
-in vec3 vView;
-out vec4 outColor;
-${ue}
-void main() {
-  uint s = texelFetch(uState, ivec2(vFace % uTexW, vFace / uTexW), 0).r;
-  if ((s & 128u) != 0u) discard;
-  vec3 col = shade(uPalette[int(s & 63u)], vView);
-  if ((s & 64u) != 0u) col = mix(col, uHighlightColor, 0.55);
-  if (vFace == uHover) col = mix(col, uHoverColor, 0.6);
-  outColor = vec4(col, 1.0);
+
+/**
+ * Filament a face will print with: structure paint, else its own paint, else the part base.
+ * @param {number} f
+ * @returns {number}
+ */
+function effectiveState(f) {
+  const layer = structures.layer;
+  if (layer && layer[f]) return layer[f];
+  const s = state.model.faceState[f];
+  return s !== 0 ? s : state.defaults[f];
 }
-`,ns=`
-precision highp float;
-precision highp int;
-precision highp usampler2D;
-uniform usampler2D uState;
-uniform int uTexW;
-flat in int vFace;
-in vec3 vView;
-out vec4 outColor;
-void main() {
-  uint s = texelFetch(uState, ivec2(vFace % uTexW, vFace / uTexW), 0).r;
-  if ((s & 128u) != 0u) discard;
-  uint id = uint(vFace + 1);
-  outColor = vec4(float(id & 255u), float((id >> 8) & 255u), float((id >> 16) & 255u), float((id >> 24) & 255u)) / 255.0;
+
+// ---------------------------------------------------------------------------
+// Filaments
+// ---------------------------------------------------------------------------
+
+const panel = new FilamentPanel($('filaments'), {
+  onSelect(i) {
+    state.active = i;
+    if (state.tool === 'orbit' || state.tool === 'eraser') setTool(structures.status === 'ready' ? 'structure' : 'pencil');
+    renderFilaments();
+  },
+  onColor(i, color, name) {
+    const f = state.filaments[i];
+    f.color = color;
+    if (f.autoName) f.name = name ?? nearestColorName(color);
+    applyPalette();
+    renderFilaments();
+    structures.render();
+  },
+  onRename(i, name) {
+    state.filaments[i].name = name;
+    state.filaments[i].autoName = false;
+    renderFilaments();
+    renderParts();
+    structures.render();
+  },
+  onAdd() {
+    if (state.filaments.length >= MAX_FILAMENTS) return;
+    state.filaments.push(nextFilament());
+    applyPalette();
+    renderFilaments();
+    renderParts();
+    structures.render();
+  },
+  onRemoveLast() {
+    const n = state.filaments.length;
+    if (n <= 1) return;
+    const used = (state.usage[n] ?? 0) + partsUsing(n);
+    if (used > 0) {
+      toast(`Filament ${n} is still used (${used.toLocaleString()} triangles or parts). Repaint them or change the part base first.`, true);
+      return;
+    }
+    state.filaments.pop();
+    if (state.active > state.filaments.length) state.active = state.filaments.length;
+    applyPalette();
+    renderFilaments();
+    renderParts();
+    structures.render();
+  },
+});
+
+/** @returns {Filament} */
+function nextFilament() {
+  const used = new Set(state.filaments.flatMap((f) => [f.color.toUpperCase(), f.name.toLowerCase()]));
+  const c = BASIC_COLORS.find((b) => !used.has(b.hex.toUpperCase()) && !used.has(b.name.toLowerCase())) ?? BASIC_COLORS[10];
+  return { name: c.name, color: c.hex, autoName: true };
 }
-`,is=`
-precision highp float;
-precision highp int;
-uniform mat4 modelViewMatrix;
-uniform mat4 projectionMatrix;
-in vec3 position;
-in float aColor;
-in float aFace;
-flat out int vColor;
-flat out int vFace;
-out vec3 vView;
-void main() {
-  vColor = int(aColor + 0.5);
-  vFace = int(aFace + 0.5);
-  vec4 mv = modelViewMatrix * vec4(position, 1.0);
-  vView = mv.xyz;
-  gl_Position = projectionMatrix * mv;
+
+/**
+ * @param {number} n
+ * @returns {number}
+ */
+function partsUsing(n) {
+  return state.model && !state.isSample ? state.model.parts.filter((p) => p.extruder === n).length : 0;
 }
-`,os=`
-precision highp float;
-precision highp int;
-uniform vec3 uPalette[${it}];
-uniform int uHover;
-uniform vec3 uHoverColor;
-flat in int vColor;
-flat in int vFace;
-in vec3 vView;
-out vec4 outColor;
-${ue}
-void main() {
-  vec3 col = shade(uPalette[vColor], vView);
-  if (vFace == uHover) col = mix(col, uHoverColor, 0.35);
-  outColor = vec4(col, 1.0);
+
+function applyPalette() {
+  viewer.setPalette(state.filaments.map((f) => f.color));
+  const mark = $('brand-mark');
+  mark.innerHTML = '';
+  state.filaments.slice(0, 8).forEach((f, i) => {
+    const bar = document.createElement('i');
+    bar.style.background = f.color;
+    bar.style.height = `${[22, 16, 19, 13, 18, 15, 20, 14][i]}px`;
+    mark.appendChild(bar);
+  });
 }
-`,as=`
-precision highp float;
-precision highp int;
-flat in int vColor;
-flat in int vFace;
-in vec3 vView;
-out vec4 outColor;
-void main() {
-  uint id = uint(vFace + 1);
-  outColor = vec4(float(id & 255u), float((id >> 8) & 255u), float((id >> 16) & 255u), float((id >> 24) & 255u)) / 255.0;
+
+function renderFilaments() {
+  panel.render(state.filaments, state.active, state.usage);
 }
-`,nt=4096,Yt=1<<20,rs=270;class cs{canvas;renderer;scene=new Vt;pickScene=new Vt;camera=new Te(35,1,.1,1e4);controls;chunks=[];overlay=null;plate=new Ee;stateData=new Uint8Array(nt);stateTex;palette=Array.from({length:it},()=>new H(.6,.6,.6));uniforms;pickTarget=new Ae(1,1,{type:jt,format:Re});pickBuf=new Uint8Array(4);dirty=!0;model=null;defaults=new Uint8Array(0);layer=null;highlighted=new Uint32Array(0);highlightCount=0;bounds=new He;resizeObs;disposed=!1;onCameraChange;container;constructor(t){this.container=t,this.renderer=new ze({antialias:!0,powerPreference:"high-performance"}),this.renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,2)),this.canvas=this.renderer.domElement,this.canvas.className="viewer-canvas",this.canvas.tabIndex=0,t.appendChild(this.canvas),this.camera.up.set(0,0,1),this.camera.position.set(-150,-250,200),this.controls=new Pe(this.camera,this.canvas),this.controls.enableDamping=!1,this.controls.zoomToCursor=!0,this.controls.addEventListener("change",()=>{this.requestRender(),this.onCameraChange?.()}),this.stateTex=this.makeStateTexture(1),this.uniforms={uState:{value:this.stateTex},uTexW:{value:nt},uPalette:{value:this.palette},uHover:{value:-1},uHoverColor:{value:new et(1,1,1)},uHighlightColor:{value:new et(1,.85,.2)}},this.scene.add(this.plate),this.applyTheme(),window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change",()=>this.applyTheme()),new MutationObserver(()=>this.applyTheme()).observe(document.documentElement,{attributes:!0,attributeFilter:["data-theme"]}),this.resizeObs=new ResizeObserver(()=>this.resize()),this.resizeObs.observe(t),this.resize(),this.canvas.addEventListener("webglcontextlost",i=>{i.preventDefault(),this.onContextLost?.()});const e=()=>{this.disposed||(this.dirty&&(this.dirty=!1,this.renderer.render(this.scene,this.camera)),requestAnimationFrame(e))};requestAnimationFrame(e)}onContextLost;applyTheme(){const t=getComputedStyle(document.documentElement),e=t.getPropertyValue("--viewer-bg").trim()||"#1b1f22",i=t.getPropertyValue("--viewer-grid").trim()||"#3a4248",n=t.getPropertyValue("--accent").trim()||"#ffffff";this.scene.background=new et(e),Kt(this.uniforms.uHoverColor.value,n),this.plate.traverse(a=>{const o=a.material;o&&"color"in o&&o.color.set(i)}),this.requestRender()}requestRender(){this.dirty=!0}resize(){const t=Math.max(1,this.container.clientWidth),e=Math.max(1,this.container.clientHeight);this.renderer.setSize(t,e,!1),this.camera.aspect=t/e,this.camera.updateProjectionMatrix(),this.requestRender()}setMode(t){const e=this.controls;t==="orbit"?(e.mouseButtons={LEFT:st.ROTATE,MIDDLE:st.DOLLY,RIGHT:st.PAN},e.touches={ONE:St.ROTATE,TWO:St.DOLLY_PAN}):(e.mouseButtons={LEFT:null,MIDDLE:st.PAN,RIGHT:st.ROTATE},e.touches={ONE:null,TWO:St.DOLLY_ROTATE})}makeStateTexture(t){const e=new Oe(this.stateData,nt,t,Ie,jt);return e.internalFormat="R8UI",e.minFilter=Gt,e.magFilter=Gt,e.generateMipmaps=!1,e.flipY=!1,e.unpackAlignment=1,e.needsUpdate=!0,e}material(t,e,i){return new Wt({glslVersion:Xt,vertexShader:es,fragmentShader:t,uniforms:i?{uState:this.uniforms.uState,uTexW:this.uniforms.uTexW,uFaceOffset:{value:e}}:{...this.uniforms,uFaceOffset:{value:e}},side:_t})}async setModel(t,e,i){this.clearModel(),this.model=t,this.defaults=e;const n=t.indices.length/3,a=Math.max(1,Math.ceil(n/nt));this.stateData=new Uint8Array(a*nt),this.stateTex.dispose(),this.stateTex=this.makeStateTexture(a),this.uniforms.uState.value=this.stateTex,this.refreshAll();const o=t.positions,r=t.indices;this.bounds.makeEmpty();const c=new H;for(let l=0;l<o.length;l+=3)c.set(o[l],o[l+1],o[l+2]),this.bounds.expandByPoint(c);for(let l=0;l<n;l+=Yt){const d=Math.min(Yt,n-l),h=new Float32Array(d*9);for(let g=0;g<d;g++){const w=(l+g)*3;for(let y=0;y<3;y++){const x=r[w+y]*3,b=g*9+y*3;h[b]=o[x],h[b+1]=o[x+1],h[b+2]=o[x+2]}}const u=new $t,p=new Be(h,3);u.setAttribute("position",p),u.computeBoundingSphere(),u.computeBoundingBox(),p.onUpload(function(){this.array=null});const m=new ut(u,this.material(ss,l,!1)),v=new ut(u,this.material(ns,l,!0));this.scene.add(m),this.pickScene.add(v),this.chunks.push({geometry:u,mesh:m,pick:v}),i?.(l+d,n),this.renderer.compile(this.scene,this.camera),this.renderer.render(this.scene,this.camera),await new Promise(g=>setTimeout(g,0))}this.rebuildOverlay(),this.buildPlate(),this.fit(),this.requestRender()}clearModel(){for(const t of this.chunks)this.scene.remove(t.mesh),this.pickScene.remove(t.pick),t.geometry.dispose(),t.mesh.material.dispose(),t.pick.material.dispose();this.chunks=[],this.clearOverlay(),this.model=null,this.layer=null,this.highlightCount=0,this.uniforms.uHover.value=-1,this.requestRender()}rebind(t){this.model=t}get hasModel(){return this.model!==null}setPalette(t){const e=new et;for(let i=0;i<it;i++){const n=t[i-1]??"#9aa0a6";e.set(n),this.palette[i].set(e.r,e.g,e.b)}for(let i=0;i<it;i++){const n=this.palette[i];n.set(Q(n.x),Q(n.y),Q(n.z))}this.requestRender()}displayByte(t){if(this.layer&&this.layer[t]!==0)return this.layer[t]&63;const e=this.model.faceState[t];return e===N?128:(e!==0?e:this.defaults[t])&63}refreshAll(){if(!this.model)return;const t=this.model.faceState.length;for(let e=0;e<t;e++)this.stateData[e]=this.displayByte(e)|this.stateData[e]&64;this.stateTex.needsUpdate=!0,this.requestRender()}refreshFaces(t){if(this.model){for(const e of t)this.stateData[e]=this.displayByte(e)|this.stateData[e]&64;this.stateTex.needsUpdate=!0,this.requestRender()}}setDefaults(t){this.defaults=t,this.refreshAll(),this.rebuildOverlay()}clearOverlay(){this.overlay&&(this.scene.remove(this.overlay.mesh),this.pickScene.remove(this.overlay.pick),this.overlay.mesh.geometry.dispose(),this.overlay.mesh.material.dispose(),this.overlay.pick.material.dispose(),this.overlay=null)}rebuildOverlay(){this.clearOverlay();const t=this.model;if(!t||t.subdiv.size===0){this.requestRender();return}const e=[],i=[],n=[],a=t.positions,o=t.indices,r=u=>[a[u*3],a[u*3+1],a[u*3+2]];for(const[u,p]of t.subdiv){if(this.layer&&this.layer[u]!==0)continue;let m;try{m=ae(p)}catch{continue}const v=this.defaults[u];le(m,r(o[u*3]),r(o[u*3+1]),r(o[u*3+2]),(g,w,y,x)=>{e.push(w[0],w[1],w[2],y[0],y[1],y[2],x[0],x[1],x[2]);const b=g!==0?g:v;i.push(b,b,b),n.push(u,u,u)})}const c=new $t;c.setAttribute("position",new pt(e,3)),c.setAttribute("aColor",new pt(i,1)),c.setAttribute("aFace",new pt(n,1)),c.computeBoundingSphere();const l=(u,p)=>new Wt({glslVersion:Xt,vertexShader:is,fragmentShader:u,uniforms:p?{}:{uPalette:this.uniforms.uPalette,uHover:this.uniforms.uHover,uHoverColor:this.uniforms.uHoverColor},side:_t}),d=new ut(c,l(os,!1)),h=new ut(c,l(as,!0));this.scene.add(d),this.pickScene.add(h),this.overlay={mesh:d,pick:h},this.requestRender()}pick(t,e){if(!this.model)return-1;const i=this.canvas.getBoundingClientRect(),n=t-i.left,a=e-i.top;if(n<0||a<0||n>=i.width||a>=i.height)return-1;this.camera.setViewOffset(i.width,i.height,n,a,1,1);const o=this.renderer.getRenderTarget(),r=this.renderer.getClearColor(new et),c=this.renderer.getClearAlpha();this.renderer.setRenderTarget(this.pickTarget),this.renderer.setClearColor(0,0),this.renderer.clear(),this.renderer.render(this.pickScene,this.camera),this.renderer.readRenderTargetPixels(this.pickTarget,0,0,1,1,this.pickBuf),this.renderer.setRenderTarget(o),this.renderer.setClearColor(r,c),this.camera.clearViewOffset();const l=this.pickBuf;return((l[0]|l[1]<<8|l[2]<<16|l[3]<<24)>>>0)-1}hitPoint(t,e,i){const n=this.model;if(!n)return null;const a=this.canvas.getBoundingClientRect(),o=new qe((e-a.left)/a.width*2-1,-((i-a.top)/a.height)*2+1),r=new Ne;r.setFromCamera(o,this.camera);const c=n.positions,l=n.indices,d=new H(c[l[t*3]*3],c[l[t*3]*3+1],c[l[t*3]*3+2]),h=new H(c[l[t*3+1]*3],c[l[t*3+1]*3+1],c[l[t*3+1]*3+2]),u=new H(c[l[t*3+2]*3],c[l[t*3+2]*3+1],c[l[t*3+2]*3+2]),p=new Ue().setFromCoplanarPoints(d,h,u),m=new H;return r.ray.intersectPlane(p,m)?[m.x,m.y,m.z]:null}setHover(t){this.uniforms.uHover.value!==t&&(this.uniforms.uHover.value=t,this.requestRender())}buildPlate(){this.plate.clear();const e=getComputedStyle(document.documentElement).getPropertyValue("--viewer-grid").trim()||"#3a4248",i=this.bounds,n=(i.min.x+i.max.x)/2,a=(i.min.y+i.max.y)/2,o=i.min.z-.05,r=rs/2,c=[],l=[];for(let h=-r;h<=r+1e-6;h+=10){const u=Math.abs(h%50)<1e-6?l:c;u.push(n+h,a-r,o,n+h,a+r,o),u.push(n-r,a+h,o,n+r,a+h,o)}const d=(h,u)=>{const p=new $t;p.setAttribute("position",new pt(h,3));const m=new De({color:e,transparent:!0,opacity:u,depthWrite:!1});return new Ve(p,m)};this.plate.add(d(c,.35)),this.plate.add(d(l,.8))}viewDistance(){const t=this.bounds.isEmpty()?new H(100,100,50):this.bounds.getSize(new H),e=Math.max(t.length()/2,1),i=this.camera.fov*Math.PI/180,n=e/Math.sin(Math.min(i,i*this.camera.aspect)/2);return this.camera.near=Math.max(.01,e/200),this.camera.far=e*40+1e3,this.camera.updateProjectionMatrix(),n*1.05}center(){return this.bounds.isEmpty()?new H:this.bounds.getCenter(new H)}fit(){const t=this.viewDistance(),e=this.center(),i=new H(-.45,-.75,.62).normalize();this.camera.position.copy(e).addScaledVector(i,t),this.controls.target.copy(e),this.controls.update(),this.requestRender()}setLayer(t){this.layer=t,this.refreshAll(),this.rebuildOverlay()}setHighlight(t,e="add"){if(!this.model)return;const i=this.stateData;for(let r=0;r<this.highlightCount;r++)i[this.highlighted[r]]&=-65;const n=t?t.length:0;this.highlighted.length<n&&(this.highlighted=new Uint32Array(Math.max(n,this.highlighted.length*2)));for(let r=0;r<n;r++){const c=t[r];this.highlighted[r]=c,i[c]|=64}this.highlightCount=n;const a=getComputedStyle(document.documentElement),o=e==="cut"?a.getPropertyValue("--bad").trim()||"#ff6b5b":e==="info"?a.getPropertyValue("--warn").trim()||"#f0b94a":a.getPropertyValue("--accent").trim()||"#57c3cc";Kt(this.uniforms.uHighlightColor.value,o),this.stateTex.needsUpdate=!0,this.requestRender()}frameBox(t,e){const i=new H((t[0]+e[0])/2,(t[1]+e[1])/2,(t[2]+e[2])/2),n=Math.max(1,Math.hypot(e[0]-t[0],e[1]-t[1],e[2]-t[2])/2),a=this.camera.fov*Math.PI/180,o=n/Math.sin(Math.min(a,a*this.camera.aspect)/2)*1.2,r=this.camera.position.clone().sub(this.controls.target).normalize();this.controls.target.copy(i),this.camera.position.copy(i).addScaledVector(r,o),this.controls.update(),this.requestRender()}topView(){const t=this.viewDistance(),e=this.center();this.camera.position.set(e.x,e.y-t*.001,e.z+t),this.controls.target.copy(e),this.controls.update(),this.requestRender()}dispose(){this.disposed=!0,this.resizeObs.disconnect(),this.clearModel(),this.renderer.dispose()}}function Kt(s,t){s.set(t),s.setRGB(Q(s.r),Q(s.g),Q(s.b),je)}function Q(s){return s<=.0031308?s*12.92:1.055*Math.pow(s,1/2.4)-.055}class ls{worker;nextId=1;pending=new Map;constructor(){this.worker=new Worker(new URL(""+new URL("model-worker.js?v=b1c5de623d",import.meta.url).href,import.meta.url),{type:"module"}),this.worker.onmessage=t=>{const e=t.data,i=this.pending.get(e.id);if(i){if(e.type==="progress"){i.progress?.(e.phase,e.done,e.total);return}this.pending.delete(e.id),i.resolve(e)}},this.worker.onerror=t=>{const e=new Error(t.message||"The background worker stopped (possibly out of memory).");for(const i of this.pending.values())i.reject(e);this.pending.clear()}}call(t,e,i){const n=this.nextId++;return new Promise((a,o)=>{this.pending.set(n,{resolve:a,reject:o,progress:i}),this.worker.postMessage({...t,id:n},e)})}async load(t,e,i){const n=await this.call({type:"load",file:t,name:e},[],i);if(n.type==="loaded")return n.model;throw new Error(n.type==="error"?n.message:"Unexpected reply from worker")}async analyze(t,e,i){const n=t.slice(),a=e.slice(),o=await this.call({type:"analyze",positions:n,indices:a},[n.buffer,a.buffer],i);if(o.type==="analyzed")return o.analysis;throw new Error(o.type==="error"?o.message:"Unexpected reply from worker")}async export(t,e,i){const n=await this.call({type:"export",model:t,verify:e},Xe(t),i);if(n.type==="exported")return{result:n.result,model:n.model};if(n.type==="error")return{model:n.model??t,error:n.message};throw new Error("Unexpected reply from worker")}}const gt=[{name:"Black",hex:"#1A1A1A"},{name:"White",hex:"#F4F4F2"},{name:"Red",hex:"#C8281E"},{name:"Green",hex:"#00A63F"},{name:"Yellow",hex:"#F4E22A"},{name:"Blue",hex:"#1D45B5"},{name:"Brown",hex:"#8A4A2B"},{name:"Orange",hex:"#FF6A13"},{name:"Pink",hex:"#F45C8A"},{name:"Purple",hex:"#6A3FB8"},{name:"Gray",hex:"#8E9089"}];function vt(s){const t=s.replace("#",""),e=parseInt(t.length===3?t.split("").map(i=>i+i).join(""):t.slice(0,6),16);return[e>>16&255,e>>8&255,e&255]}function hs(s,t,e){const i=n=>Math.max(0,Math.min(255,Math.round(n))).toString(16).padStart(2,"0");return`#${i(s)}${i(t)}${i(e)}`.toUpperCase()}function Ct(s,t,e){s/=255,t/=255,e/=255;const i=Math.max(s,t,e),n=Math.min(s,t,e),a=i-n;let o=0;return a>0&&(i===s?o=(t-e)/a%6:i===t?o=(e-s)/a+2:o=(s-t)/a+4,o*=60,o<0&&(o+=360)),[o,i===0?0:a/i,i]}function Zt(s,t,e){const i=e*t,n=i*(1-Math.abs(s/60%2-1)),a=e-i;let o=0,r=0,c=0;return s<60?[o,r,c]=[i,n,0]:s<120?[o,r,c]=[n,i,0]:s<180?[o,r,c]=[0,i,n]:s<240?[o,r,c]=[0,n,i]:s<300?[o,r,c]=[n,0,i]:[o,r,c]=[i,0,n],[(o+a)*255,(r+a)*255,(c+a)*255]}function pe(s){const[t,e,i]=vt(s);let n=gt[0].name,a=1/0;const o=[["Black",0,0,0],["White",255,255,255],["Red",220,30,30],["Green",30,170,60],["Yellow",250,230,40],["Blue",30,80,220],["Brown",130,75,40],["Orange",255,130,20],["Pink",250,120,170],["Purple",120,60,180],["Gray",140,140,140]];for(const[r,c,l,d]of o){const h=(t-c)**2*.3+(e-l)**2*.59+(i-d)**2*.11;h<a&&(a=h,n=r)}return n}function fe(s){const[t,e,i]=vt(s);return(.2126*t+.7152*e+.0722*i)/255>.6?"#141414":"#FFFFFF"}class ds{el;canvas;marker;bright;inR;inG;inB;inHex;h=0;s=0;v=1;drawnV=-1;size=168;onInput;constructor(){this.el=document.createElement("div"),this.el.className="wheel",this.el.innerHTML=`
-      <div class="wheel-disc">
-        <canvas width="10" height="10" aria-label="Hue and saturation wheel" role="img"></canvas>
-        <div class="wheel-marker" aria-hidden="true"></div>
-      </div>
-      <label class="wheel-bright"><span>Brightness</span><input id="wheel-bright" type="range" min="0" max="100" step="1" value="100"></label>
-      <div class="wheel-fields">
-        <label><span>R</span><input id="wheel-r" type="number" min="0" max="255" step="1" inputmode="numeric"></label>
-        <label><span>G</span><input id="wheel-g" type="number" min="0" max="255" step="1" inputmode="numeric"></label>
-        <label><span>B</span><input id="wheel-b" type="number" min="0" max="255" step="1" inputmode="numeric"></label>
-        <label class="wheel-hex"><span>Hex</span><input id="wheel-hex" type="text" maxlength="7" spellcheck="false" autocomplete="off"></label>
-      </div>`,this.canvas=this.el.querySelector("canvas"),this.marker=this.el.querySelector(".wheel-marker"),this.bright=this.el.querySelector("#wheel-bright"),this.inR=this.el.querySelector("#wheel-r"),this.inG=this.el.querySelector("#wheel-g"),this.inB=this.el.querySelector("#wheel-b"),this.inHex=this.el.querySelector("#wheel-hex");const t=Math.min(window.devicePixelRatio||1,2);this.canvas.width=this.canvas.height=Math.round(this.size*t),this.canvas.style.width=this.canvas.style.height=`${this.size}px`;const e=n=>{const a=this.canvas.getBoundingClientRect(),o=n.clientX-a.left-a.width/2,r=n.clientY-a.top-a.height/2,c=a.width/2;this.h=(Math.atan2(r,o)*180/Math.PI+360)%360,this.s=Math.min(1,Math.hypot(o,r)/c),this.v<.05&&(this.v=1),this.sync("wheel")};this.canvas.addEventListener("pointerdown",n=>{this.canvas.setPointerCapture(n.pointerId),e(n)}),this.canvas.addEventListener("pointermove",n=>{n.buttons&1&&e(n)}),this.bright.addEventListener("input",()=>{this.v=Number(this.bright.value)/100,this.sync("bright")});const i=()=>{const n=Ft(this.inR.value),a=Ft(this.inG.value),o=Ft(this.inB.value);[this.h,this.s,this.v]=Ct(n,a,o),this.sync("rgb")};for(const n of[this.inR,this.inG,this.inB])n.addEventListener("input",i);this.inHex.addEventListener("input",()=>{const n=this.inHex.value.trim();if(/^#?[0-9a-fA-F]{6}$/.test(n)){const[a,o,r]=vt(n.startsWith("#")?n:"#"+n);[this.h,this.s,this.v]=Ct(a,o,r),this.sync("hex")}})}setColor(t){const[e,i,n]=vt(t);[this.h,this.s,this.v]=Ct(e,i,n),this.sync("external")}sync(t){const[e,i,n]=Zt(this.h,this.s,this.v),a=hs(e,i,n);t!=="rgb"&&(this.inR.value=String(Math.round(e)),this.inG.value=String(Math.round(i)),this.inB.value=String(Math.round(n))),t!=="hex"&&(this.inHex.value=a),t!=="bright"&&(this.bright.value=String(Math.round(this.v*100))),Math.abs(this.drawnV-this.v)>.004&&this.draw();const o=this.size/2,r=this.h*Math.PI/180;this.marker.style.transform=`translate(${o+Math.cos(r)*this.s*o}px, ${o+Math.sin(r)*this.s*o}px)`,this.marker.style.background=a,t!=="external"&&this.onInput?.(a)}draw(){const t=this.canvas.getContext("2d"),e=this.canvas.width,i=t.createImageData(e,e),n=e/2,a=i.data;for(let o=0;o<e;o++)for(let r=0;r<e;r++){const c=r+.5-n,l=o+.5-n,d=Math.hypot(c,l),h=(o*e+r)*4;if(d>n){a[h+3]=0;continue}const u=(Math.atan2(l,c)*180/Math.PI+360)%360,[p,m,v]=Zt(u,d/n,this.v);a[h]=p,a[h+1]=m,a[h+2]=v,a[h+3]=d>n-1?Math.round((n-d)*255):255}t.putImageData(i,0,0),this.drawnV=this.v}}function Ft(s){const t=Number(s);return Number.isFinite(t)?Math.max(0,Math.min(255,t)):0}const us=[{name:"Green",color:"#00A63F",autoName:!0},{name:"Red",color:"#C8281E",autoName:!0},{name:"Yellow",color:"#F4E22A",autoName:!0},{name:"White",color:"#F4F4F2",autoName:!0}],ps='<svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true"><path d="M13.6 2.6a1.9 1.9 0 0 1 2.7 0l1.1 1.1a1.9 1.9 0 0 1 0 2.7L7.2 16.6l-4.2 1 1-4.2L13.6 2.6Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="m12.2 4 3.8 3.8" stroke="currentColor" stroke-width="1.6"/></svg>';class fs{list;addBtn;removeBtn;popover;wheel=new ds;editing=-1;filaments=[];hooks;constructor(t,e){this.hooks=e,t.innerHTML=`
-      <ol class="filament-list" aria-label="Filaments"></ol>
-      <div class="filament-actions">
-        <button type="button" class="btn btn-quiet" id="filament-add">+ Add filament</button>
-        <button type="button" class="btn btn-quiet" id="filament-remove">Remove last</button>
-      </div>`,this.list=t.querySelector(".filament-list"),this.addBtn=t.querySelector("#filament-add"),this.removeBtn=t.querySelector("#filament-remove"),this.addBtn.addEventListener("click",()=>e.onAdd()),this.removeBtn.addEventListener("click",()=>e.onRemoveLast()),this.popover=document.createElement("div"),this.popover.className="popover",this.popover.setAttribute("role","dialog"),this.popover.hidden=!0,this.popover.innerHTML=`
-      <div class="popover-head"><strong class="popover-title"></strong><button type="button" class="icon-btn" data-close aria-label="Close">×</button></div>
-      <div class="basic-grid" role="listbox" aria-label="Basic colours"></div>
-      <button type="button" class="btn btn-quiet advanced-toggle" aria-expanded="false">Advanced</button>
-      <div class="advanced" hidden></div>`,document.body.appendChild(this.popover);const i=this.popover.querySelector(".basic-grid");for(const o of gt){const r=document.createElement("button");r.type="button",r.className="basic-swatch",r.dataset.hex=o.hex,r.setAttribute("role","option"),r.innerHTML=`<span class="chip" style="background:${o.hex}"></span><span>${o.name}</span>`,r.addEventListener("click",()=>{this.editing<0||(this.hooks.onColor(this.editing,o.hex,o.name),this.wheel.setColor(o.hex),this.markSelected(o.hex))}),i.appendChild(r)}const n=this.popover.querySelector(".advanced");n.appendChild(this.wheel.el);const a=this.popover.querySelector(".advanced-toggle");a.addEventListener("click",()=>{n.hidden=!n.hidden,a.setAttribute("aria-expanded",String(!n.hidden)),a.textContent=n.hidden?"Advanced":"Hide advanced",this.position()}),this.wheel.onInput=o=>{this.editing>=0&&this.hooks.onColor(this.editing,o),this.markSelected(o)},this.popover.querySelector("[data-close]").addEventListener("click",()=>this.close()),document.addEventListener("pointerdown",o=>{if(this.popover.hidden)return;const r=o.target;this.popover.contains(r)||r.closest?.(".pencil-btn")||this.close()}),document.addEventListener("keydown",o=>{o.key==="Escape"&&!this.popover.hidden&&this.close()}),window.addEventListener("resize",()=>this.position())}anchor=null;markSelected(t){this.popover.querySelectorAll(".basic-swatch").forEach(e=>e.classList.toggle("selected",e.dataset.hex===t.toUpperCase()))}open(t,e){this.editing=t,this.anchor=e;const i=this.filaments[t];this.popover.querySelector(".popover-title").textContent=`Filament ${t+1} colour`,this.wheel.setColor(i.color),this.markSelected(i.color),this.popover.hidden=!1,this.position(),this.popover.querySelector(".basic-swatch")?.focus()}close(){this.popover.hidden=!0,this.editing=-1,this.anchor?.focus(),this.anchor=null}position(){if(this.popover.hidden||!this.anchor)return;const t=this.anchor.getBoundingClientRect(),e=this.popover.getBoundingClientRect(),i=window.innerWidth,n=window.innerHeight;let a=t.right+10,o=t.top-12;a+e.width>i-12&&(a=Math.max(12,Math.min(i-e.width-12,t.left))),a<t.right&&a+e.width>t.left&&(o=t.bottom+8),o+e.height>n-12&&(o=Math.max(12,n-e.height-12)),this.popover.style.left=`${a}px`,this.popover.style.top=`${o}px`}render(t,e,i){if(this.filaments=t,this.list.innerHTML="",t.forEach((n,a)=>{const o=document.createElement("li");o.className="filament"+(a+1===e?" active":"");const r=i[a+1]??0;o.innerHTML=`
-        <button type="button" class="swatch" aria-pressed="${a+1===e}" title="Paint with filament ${a+1}" style="--swatch:${n.color};--ink:${fe(n.color)}">${a+1}</button>
-        <div class="filament-text">
-          <input id="filament-name-${a+1}" class="filament-name" value="" aria-label="Name of filament ${a+1}" maxlength="40" spellcheck="false">
-          <span class="filament-meta">${n.color.toUpperCase()}${r?` · ${r.toLocaleString()} tri`:""}</span>
-        </div>
-        <button type="button" class="icon-btn pencil-btn" aria-label="Edit colour of filament ${a+1}" title="Edit colour">${ps}</button>`;const c=o.querySelector(".filament-name");c.value=n.name,c.addEventListener("change",()=>this.hooks.onRename(a,c.value.trim()||`Filament ${a+1}`)),c.addEventListener("keydown",d=>{d.key==="Enter"&&c.blur(),d.stopPropagation()}),o.querySelector(".swatch").addEventListener("click",()=>this.hooks.onSelect(a+1));const l=o.querySelector(".pencil-btn");l.addEventListener("click",()=>{!this.popover.hidden&&this.editing===a?this.close():this.open(a,l)}),this.list.appendChild(o)}),this.addBtn.disabled=t.length>=mt,this.removeBtn.disabled=t.length<=1,!this.popover.hidden&&this.editing>=0){const n=this.list.querySelectorAll(".pencil-btn");this.anchor=n[this.editing]??null,this.position()}}}function ms(){const s=[],t=[],e=[],i=[],n=(c,l,d)=>{c.applyMatrix4(l);const h=c.getAttribute("position"),u=s.length/3;for(let m=0;m<h.count;m++)s.push(h.getX(m),h.getY(m),h.getZ(m));const p=c.getIndex();for(let m=0;m<p.count;m+=3)t.push(u+p.getX(m),u+p.getX(m+1),u+p.getX(m+2)),e.push(d);c.dispose()};for(let c=0;c<11;c++){const l=e.length,d=s.length/3,h=(c/10-.5)*1.9,u=Math.sin(h)*62,p=Math.cos(h)*62-62*.55,m=-h,v=c===0,g=v?1.45:1,w=new Ge(6,9,6,22),y=new Z().makeTranslation(u,p,5.2*g).multiply(new Z().makeRotationZ(m)).multiply(new Z().makeScale(g,g,g*.85)).multiply(new Z().makeRotationZ(Math.PI/2));n(w,y,0);const x=new We(2.6,.95,90,10,2,5),b=new Z().makeTranslation(u,p,10.6*g).multiply(new Z().makeScale(g,g,g*.7));n(x,b,0),i.push({name:v?"Head":`Segment ${c}`,objectIndex:0,firstFace:l,faceCount:e.length-l,firstVertex:d,vertexCount:s.length/3-d,extruder:1})}const r=e.length;return{name:"Sample chain",format:"stl",positions:new Float32Array(s),indices:new Uint32Array(t),faceState:new Uint8Array(e),subdiv:new Map,parts:i,objects:[{name:"Sample chain",firstPart:0,partCount:i.length}],filamentColors:[],warnings:[],stats:{faces:r,vertices:s.length/3,paintedFaces:e.filter(c=>c).length,subdividedFaces:0,maxState:4,seconds:0,sourceBytes:0}}}let Jt=null;function gs(){const s=window.claude;return!s||typeof s.use!="function"?Promise.resolve(null):(Jt??=s.use("downloads").then(t=>t??null).catch(()=>null),Jt)}function vs(){const s=window.claude;return!!s&&typeof s.use=="function"}async function ys(s,t){const e=await gs();if(e)try{return await e.save({filename:t,data:s}),{ok:!0,filename:t,message:`Saved ${t}`}}catch(a){const o=a.code;if(o==="rejected_extension"&&/\.3mf$/i.test(t)){const r=t+".zip";try{return await e.save({filename:r,data:s}),{ok:!0,filename:r,message:`Saved ${r}. Remove the ".zip" ending so it opens as a 3MF (the file inside is unchanged).`}}catch(c){return{ok:!1,filename:r,message:Qt(c.code)}}}return{ok:!1,filename:t,message:Qt(o)}}if(vs())return{ok:!1,filename:t,message:"Saving files is not available in this view."};const i=URL.createObjectURL(s),n=document.createElement("a");return n.href=i,n.download=t,document.body.appendChild(n),n.click(),n.remove(),setTimeout(()=>URL.revokeObjectURL(i),6e4),{ok:!0,filename:t,message:`Downloaded ${t}`}}function Qt(s){switch(s){case"declined":return"Save cancelled.";case"rate_limited":return"A save prompt is already open. Finish it, then try again.";case"too_large":return"The file is too large to save from this view.";default:return"Saving files is not available in this view."}}class te{visit;epoch=0;positions;indices;neighbors;pieceOfFace;constructor(t,e,i,n){this.positions=t,this.indices=e,this.neighbors=i,this.pieceOfFace=n,this.visit=new Uint32Array(e.length/3)}normal(t,e,i){const n=this.positions,a=this.indices,o=a[t*3]*3,r=a[t*3+1]*3,c=a[t*3+2]*3,l=n[r]-n[o],d=n[r+1]-n[o+1],h=n[r+2]-n[o+2],u=n[c]-n[o],p=n[c+1]-n[o+1],m=n[c+2]-n[o+2];let v=d*m-h*p,g=h*u-l*m,w=l*p-d*u;const y=Math.hypot(v,g,w)||1;v/=y,g/=y,w/=y,e[i]=v,e[i+1]=g,e[i+2]=w}centroid(t){const e=this.positions,i=this.indices,n=i[t*3]*3,a=i[t*3+1]*3,o=i[t*3+2]*3;return[(e[n]+e[a]+e[o])/3,(e[n+1]+e[a+1]+e[o+1])/3,(e[n+2]+e[a+2]+e[o+2])/3]}grow(t,e,i,n=4e5){++this.epoch>=4294963200&&(this.visit.fill(0),this.epoch=1);const a=this.epoch,o=this.positions,r=this.indices,c=this.neighbors,l=this.pieceOfFace[t],[d,h,u]=i??this.centroid(t),p=e.radius*e.radius,m=Math.cos(e.angle*Math.PI/180),v=new Float64Array(6),g=[t];this.visit[t]=a;for(let w=0;w<g.length&&g.length<n;w++){const y=g[w];this.normal(y,v,0);for(let x=0;x<3;x++){const b=c[y*3+x];if(b<0||this.visit[b]===a||this.pieceOfFace[b]!==l)continue;const S=r[b*3]*3,C=r[b*3+1]*3,$=r[b*3+2]*3,A=(o[S]+o[C]+o[$])/3-d,T=(o[S+1]+o[C+1]+o[$+1])/3-h,G=(o[S+2]+o[C+2]+o[$+2])/3-u;if(A*A+T*T+G*G>p)continue;if(this.normal(b,v,3),v[0]*v[3]+v[1]*v[4]+v[2]*v[5]<m){const E=r[y*3+x],R=r[y*3+(x+1)%3];let O=r[b*3];if((O===E||O===R)&&(O=r[b*3+1]),(O===E||O===R)&&(O=r[b*3+2]),(o[O*3]-o[E*3])*v[0]+(o[O*3+1]-o[E*3+1])*v[1]+(o[O*3+2]-o[E*3+2])*v[2]>0)continue}this.visit[b]=a,g.push(b)}}return g}fillHoles(t,e,i,n){if(this.epoch>4294963200)return t;const a=this.epoch,o=++this.epoch,r=this.neighbors,c=this.pieceOfFace[e],[l,d,h]=this.centroid(e),u=i*i,p=n;for(const w of t)this.visit[w]=a;const m=t.slice(),v=[],g=[];for(let w=0;w<t.length;w++){const y=t[w];for(let x=0;x<3;x++){const b=r[y*3+x];if(b<0||this.visit[b]===a||this.visit[b]===o||this.pieceOfFace[b]!==c)continue;const S=++this.epoch;g.length=0,v.length=0,v.push(b),this.visit[b]=S;let C=!1;for(;v.length&&!C;){const $=v.pop();g.push($);const[A,T,G]=this.centroid($);if((A-l)**2+(T-d)**2+(G-h)**2>u||g.length>p){C=!0;break}for(let W=0;W<3;W++){const E=r[$*3+W];if(E<0||this.pieceOfFace[E]!==c)continue;const R=this.visit[E];if(!(R===a||R===S)){if(R===o){C=!0;break}this.visit[E]=S,v.push(E)}}}if(C){for(const $ of g)this.visit[$]=o;for(const $ of v)this.visit[$]=o;continue}for(const $ of g)this.visit[$]=a,m.push($)}}return m}}function me(s,t,e){const i={angle:e.angle,radius:e.radius*.5};let n=t;for(let a=0;a<8;a++){let o=n,r=s.centroid(n)[2];for(const c of s.grow(n,i)){const l=s.centroid(c)[2];l>r+1e-4&&(r=l,o=c)}if(o===n)break;n=o}return n}function Tt(s,t,e){t=me(s,t,e);const i=s.grow(t,e);return s.fillHoles(i,t,e.radius*1.2,Math.min(200,Math.ceil(i.length*.03)))}function ee(s,t,e,i,n){const a=t-s.fx,o=e-s.fy;n[0]=s.cos*a-s.sin*o+s.tx,n[1]=s.sin*a+s.cos*o+s.ty,n[2]=i+s.dz}class bs{cell;ox;oy;oz;nx;ny;nz;start;items;pts;constructor(t,e){this.pts=t;const i=t.length/3;let n=1/0,a=1/0,o=1/0,r=-1/0,c=-1/0,l=-1/0;for(let g=0;g<i;g++){const w=t[g*3],y=t[g*3+1],x=t[g*3+2];w<n&&(n=w),y<a&&(a=y),x<o&&(o=x),w>r&&(r=w),y>c&&(c=y),x>l&&(l=x)}i===0&&(n=a=o=r=c=l=0);const d=Math.max(1e-9,(r-n+e)*(c-a+e)*(l-o+e)),h=Math.max(1024,i*2);d/(e*e*e)>h&&(e=Math.cbrt(d/h)),this.cell=e,this.ox=n,this.oy=a,this.oz=o,this.nx=Math.max(1,Math.floor((r-n)/e)+1),this.ny=Math.max(1,Math.floor((c-a)/e)+1),this.nz=Math.max(1,Math.floor((l-o)/e)+1);const u=this.nx*this.ny*this.nz,p=new Uint32Array(u+1),m=new Uint32Array(i);for(let g=0;g<i;g++){const w=this.cellIndex(t[g*3],t[g*3+1],t[g*3+2]);m[g]=w,p[w+1]++}for(let g=0;g<u;g++)p[g+1]+=p[g];this.start=p;const v=p.slice(0,u);this.items=new Uint32Array(i);for(let g=0;g<i;g++)this.items[v[m[g]]++]=g}cellIndex(t,e,i){let n=Math.floor((t-this.ox)/this.cell),a=Math.floor((e-this.oy)/this.cell),o=Math.floor((i-this.oz)/this.cell);return n=n<0?0:n>=this.nx?this.nx-1:n,a=a<0?0:a>=this.ny?this.ny-1:a,o=o<0?0:o>=this.nz?this.nz-1:o,(o*this.ny+a)*this.nx+n}nearest(t,e,i,n){const a=this.cell,o=Math.floor((t-this.ox)/a),r=Math.floor((e-this.oy)/a),c=Math.floor((i-this.oz)/a);let l=-1,d=n*n;const h=Math.ceil(n/a);for(let u=0;u<=h&&!(l>=0&&(u-1)*a>Math.sqrt(d));u++)for(let p=-u;p<=u;p++){const m=c+p;if(!(m<0||m>=this.nz))for(let v=-u;v<=u;v++){const g=r+v;if(!(g<0||g>=this.ny))for(let w=-u;w<=u;w++){if(Math.max(Math.abs(w),Math.abs(v),Math.abs(p))!==u)continue;const y=o+w;if(y<0||y>=this.nx)continue;const x=(m*this.ny+g)*this.nx+y;for(let b=this.start[x];b<this.start[x+1];b++){const S=this.items[b],C=this.pts[S*3]-t,$=this.pts[S*3+1]-e,A=this.pts[S*3+2]-i,T=C*C+$*$+A*A;T<d&&(d=T,l=S)}}}}return l}within(t,e,i,n,a){const o=this.cell,r=Math.max(0,Math.floor((t-n-this.ox)/o)),c=Math.min(this.nx-1,Math.floor((t+n-this.ox)/o)),l=Math.max(0,Math.floor((e-n-this.oy)/o)),d=Math.min(this.ny-1,Math.floor((e+n-this.oy)/o)),h=Math.max(0,Math.floor((i-n-this.oz)/o)),u=Math.min(this.nz-1,Math.floor((i+n-this.oz)/o)),p=n*n;for(let m=h;m<=u;m++)for(let v=l;v<=d;v++)for(let g=r;g<=c;g++){const w=(m*this.ny+v)*this.nx+g;for(let y=this.start[w];y<this.start[w+1];y++){const x=this.items[y],b=this.pts[x*3]-t,S=this.pts[x*3+1]-e,C=this.pts[x*3+2]-i;b*b+S*S+C*C<=p&&a(x)}}}}const z=360;function ge(s,t,e,i){const n=new Float64Array(z),a=t.length;for(let r=0;r<a;r++){const c=s[r*3]-e,l=s[r*3+1]-i,d=Math.hypot(c,l);let h=Math.atan2(l,c);h<0&&(h+=2*Math.PI);const u=Math.floor(h/(2*Math.PI)*z)%z;n[u]+=t[r]*d}const o=new Float64Array(z);for(let r=0;r<z;r++){let c=0;for(let l=-2;l<=2;l++)c+=n[(r+l+z)%z];o[r]=c}return o}function ws(s,t,e,i,n,a,o){const r=ge(s,t,e.cx,e.cy),c=[];for(let h=0;h<z;h++){let u=0;for(let p=0;p<z;p++)u+=r[p]*a[(p+h)%z];c.push({shift:h,score:u})}c.sort((h,u)=>u.score-h.score);const l=[];let d=null;for(const h of c){if(l.some(m=>Math.min(Math.abs(m-h.shift),z-Math.abs(m-h.shift))<15))continue;l.push(h.shift);const u=h.shift/z*2*Math.PI,p=xs(s,i,n,{cos:Math.cos(u),sin:Math.sin(u),fx:e.cx,fy:e.cy,tx:o.cx,ty:o.cy,dz:o.min[2]-e.min[2]});if((!d||p.rms<d.rms)&&(d=p),l.length>=3||d.rms<.05)break}return d}function xs(s,t,e,i){const n=s.length/3,a=Math.max(1,Math.floor(n/1500));let o={...i};const r=[0,0,0];let c=1/0,l=0;for(let p=0;p<12;p++){let m=0,v=0,g=0,w=0,y=0;const x=[];let b=0;for(let F=0;F<n;F+=a){ee(o,s[F*3],s[F*3+1],s[F*3+2],r);const I=t.nearest(r[0],r[1],r[2],p<3?3:1);if(I<0)continue;const V=Math.hypot(e[I*3]-r[0],e[I*3+1]-r[1],e[I*3+2]-r[2]);x.push(F,I),b+=V*V}const S=x.length/2;if(S<10)break;c=Math.sqrt(b/S),l=S/Math.ceil(n/a);for(let F=0;F<x.length;F+=2){const I=x[F],V=x[F+1];m+=s[I*3],v+=s[I*3+1],g+=e[V*3],w+=e[V*3+1],y++}const C=m/y,$=v/y,A=g/y,T=w/y;let G=0,W=0;for(let F=0;F<x.length;F+=2){const I=x[F],V=x[F+1],qt=s[I*3]-C,Nt=s[I*3+1]-$,Ut=e[V*3]-A,Dt=e[V*3+1]-T;G+=qt*Ut+Nt*Dt,W+=qt*Dt-Nt*Ut}const E=Math.atan2(W,G),R={cos:Math.cos(E),sin:Math.sin(E),fx:C,fy:$,tx:A,ty:T,dz:o.dz},O=Math.abs(R.cos-o.cos)+Math.abs(R.sin-o.sin)+Math.abs(R.tx-o.tx-(R.fx-o.fx))*0;if(o=R,p>4&&O<1e-7)break}let d=0,h=0,u=0;for(let p=0;p<n;p+=a){ee(o,s[p*3],s[p*3+1],s[p*3+2],r);const m=t.nearest(r[0],r[1],r[2],1);if(h++,m<0)continue;const v=Math.hypot(e[m*3]-r[0],e[m*3+1]-r[1],e[m*3+2]-r[2]);d+=v*v,v<.25&&u++}return c=h?Math.sqrt(d/Math.max(1,u)):1/0,l=h?u/h:0,{t:o,rms:c,inliers:l}}const ve=12;function ks(s){let t=s|0;return()=>{t=t+1831565813|0;let e=Math.imul(t^t>>>15,1|t);return e=e+Math.imul(e^e>>>7,61|e)^e,((e^e>>>14)>>>0)/4294967296}}class Ms{types=[];instances=[];layer;analysis;grower;mask;positions;indices;buffer;nextId=1;constructor(t,e,i){this.positions=t,this.indices=e,this.analysis=i;const n=e.length/3;this.grower=new te(t,e,i.neighbors,i.pieces.pieceOfFace),this.mask=new Uint8Array(n),this.layer=new Uint8Array(n),this.buffer=new Uint32Array(n)}rebind(t,e){this.positions=t,this.indices=e,this.grower=new te(t,e,this.analysis.neighbors,this.analysis.pieces.pieceOfFace)}groupOfFace(t){return this.analysis.groupOfPiece[this.analysis.pieces.pieceOfFace[t]]}refRegion(t,e,i=[]){const n=Tt(this.grower,t,e);if(!i.length)return n;const a=new Set;for(const o of i)for(const r of this.grower.grow(o.seedRef,o.params))a.add(r);return n.filter(o=>!a.has(o))}preview(t,e,i=!1){const n=this.analysis,a=this.groupOfFace(t),o=n.groups[a],r=i?this.grower.grow(n.corr[t],e):Tt(this.grower,n.corr[t],e),c=this.mapRegion(r,o.members);return{faces:this.buffer.subarray(0,c),refRegion:r,group:a,copies:o.members.length}}mapRegion(t,e){const i=this.analysis,n=this.mask;for(const l of t)n[l]=1;let a=0;const o=i.pieces,r=i.corr,c=this.buffer;for(const l of e)for(let d=o.pieceStart[l];d<o.pieceStart[l+1];d++){const h=o.pieceFaces[d];n[r[h]]&&(c[a++]=h)}for(const l of t)n[l]=0;return a}newType(t,e){const i={id:this.nextId++,name:t,selections:[],rule:e};return this.types.push(i),i}selectionAt(t,e){const i=this.analysis,n=this.groupOfFace(e),a=i.corr[e];for(let o=0;o<t.selections.length;o++){const r=t.selections[o];if(r.group===n&&this.refRegion(r.seedRef,r.params,r.excludes).includes(a))return o}return-1}addSelection(t,e,i){return this.selectionAt(t,e)>=0?!1:(t.selections.push({group:this.groupOfFace(e),seedRef:this.analysis.corr[e],params:{...i},excludes:[]}),!0)}addExclusion(t,e,i){const n=this.selectionAt(t,e);return n<0?!1:(t.selections[n].excludes.push({seedRef:this.analysis.corr[e],params:{angle:ve,radius:i}}),!0)}removeSelectionAt(t,e){const i=this.selectionAt(t,e);return i<0?!1:(t.selections.splice(i,1),!0)}coveredGroups(t){return new Set(t.selections.map(e=>e.group))}reverseChain(){const t=this.analysis,e=t.chainOrder.length;t.chainOrder.reverse();for(let i=0;i<t.chainPosition.length;i++)t.chainPosition[i]>=0&&(t.chainPosition[i]=e-1-t.chainPosition[i])}recompute(){const t=this.analysis;this.layer.fill(0),this.instances=[];const e=t.chainOrder.length?t.stats[t.chainOrder[0]]:null,i=this.positions,n=this.indices;for(const a of this.types){const o=[];for(const l of a.selections){const d=t.groups[l.group],h=this.refRegion(l.seedRef,l.params,l.excludes);for(const u of d.members){const p=this.mapRegion(h,[u]);if(!p)continue;const m=this.buffer.slice(0,p);let v=0,g=0,w=0;for(let y=0;y<p;y++){const x=m[y],b=n[x*3]*3;v+=i[b],g+=i[b+1],w+=i[b+2]}o.push({type:a.id,piece:u,faces:m,cx:v/p,cy:g/p,cz:w/p,filament:0})}}const r=l=>t.chainPosition[l.piece]>=0?t.chainPosition[l.piece]:1e6+l.piece,c=l=>e?Math.hypot(l.cx-e.cx,l.cy-e.cy,l.cz-e.cz):0;o.sort((l,d)=>r(l)-r(d)||c(l)-c(d)),this.colour(a.rule,o);for(const l of o)for(const d of l.faces)this.layer[d]=l.filament;this.instances.push(...o)}}colour(t,e){if(t.kind==="single"){for(const o of e)o.filament=t.filament;return}const i=t.filaments.length?t.filaments:[1];if(t.kind==="sequence"){e.forEach((o,r)=>o.filament=i[r%i.length]);return}const n=ks(t.seed),a=t.spacing*t.spacing;e.forEach((o,r)=>{const c=new Set;if(r>0&&c.add(e[r-1].filament),a>0)for(let d=0;d<r;d++){const h=e[d];(h.cx-o.cx)**2+(h.cy-o.cy)**2+(h.cz-o.cz)**2<=a&&c.add(h.filament)}let l=i.filter(d=>!c.has(d));!l.length&&r>0&&(l=i.filter(d=>d!==e[r-1].filament)),l.length||(l=i),o.filament=l[Math.floor(n()*l.length)]})}cloud(t){const e=this.positions,i=this.indices,n=new Float32Array(t.length*3),a=new Float32Array(t.length);let o=0,r=0,c=0,l=0,d=1/0;return t.forEach((h,u)=>{const p=i[h*3]*3,m=i[h*3+1]*3,v=i[h*3+2]*3,g=(e[p]+e[m]+e[v])/3,w=(e[p+1]+e[m+1]+e[v+1])/3,y=(e[p+2]+e[m+2]+e[v+2])/3;n[u*3]=g,n[u*3+1]=w,n[u*3+2]=y;const x=e[m]-e[p],b=e[m+1]-e[p+1],S=e[m+2]-e[p+2],C=e[v]-e[p],$=e[v+1]-e[p+1],A=e[v+2]-e[p+2],T=.5*Math.hypot(b*A-S*$,S*C-x*A,x*$-b*C);a[u]=T,o+=T,r+=T*g,c+=T*w,l+=T*y,y<d&&(d=y)}),o=o||1,{pts:n,area:a,stats:{faces:t.length,area:o,volume:0,cx:r/o,cy:c/o,cz:l/o,min:[0,0,d],max:[0,0,0],ixx:0,iyy:0}}}topFace(t){const e=this.analysis.pieces,i=this.positions,n=this.indices;let a=e.pieceFaces[e.pieceStart[t]],o=-1/0;for(let r=e.pieceStart[t];r<e.pieceStart[t+1];r++){const c=e.pieceFaces[r],l=i[n[c*3]*3+2]+i[n[c*3+1]*3+2]+i[n[c*3+2]*3+2];l>o&&(o=l,a=c)}return a}async autoMatch(t,e,i,n){const a=this.analysis,o=this.refRegion(e.seedRef,e.params,e.excludes);if(o.length<20)return{kinds:0,pieces:0};const r=this.cloud(o),c=new bs(r.pts,.3),l=ge(r.pts,r.area,r.stats.cx,r.stats.cy),d=this.coveredGroups(t),h=[];a.groups.forEach((m,v)=>{!d.has(v)&&a.stats[m.ref].faces>=o.length*.5&&h.push(v)});let u=0,p=0;for(let m=0;m<h.length&&!(i()||(n?.(m,h.length),await new Promise(C=>setTimeout(C,0)),i()));m++){const v=h[m],g=a.groups[v],w=me(this.grower,this.topFace(g.ref),e.params),y=Tt(this.grower,w,e.params),x=y.length/o.length;if(x<.7||x>1.4)continue;const b=this.cloud(y),S=ws(b.pts,b.area,b.stats,c,r.pts,l,r.stats);S.inliers<.85||S.rms>.25||(t.selections.push({group:v,seedRef:w,params:{...e.params},excludes:[],auto:!0}),u++,p+=g.members.length)}return n?.(h.length,h.length),{kinds:u,pieces:p}}snapshot(){return JSON.parse(JSON.stringify(this.types))}restore(t){this.types=JSON.parse(JSON.stringify(t)),this.nextId=Math.max(0,...this.types.map(e=>e.id))+1}}const U=s=>s.replace(/[&<>"']/g,t=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"})[t]);class Ss{engine=null;status="idle";params={angle:35,radius:8};mode="add";activeId=0;host;token=0;progressText="";hoverEpoch=new Uint32Array(0);epoch=0;cache=null;els;matchToken=0;matchText="";constructor(t){this.host=t;const e=a=>document.getElementById(a);this.els={status:e("struct-status"),types:e("struct-types"),review:e("struct-review"),pieces:e("pieces"),angle:e("struct-angle"),angleOut:e("struct-angle-out"),radius:e("struct-radius"),radiusOut:e("struct-radius-out"),modeAdd:e("struct-mode-add"),modeCut:e("struct-mode-cut"),newType:e("struct-new"),controls:e("struct-controls")};const i=this.els.angle,n=this.els.radius;i.addEventListener("input",()=>{this.params.angle=Number(i.value),this.syncSliders(),this.invalidateHover()}),n.addEventListener("input",()=>{this.params.radius=Number(n.value),this.syncSliders(),this.invalidateHover()}),this.els.modeAdd.addEventListener("click",()=>this.setMode("add")),this.els.modeCut.addEventListener("click",()=>this.setMode("cut")),this.els.newType.addEventListener("click",()=>{if(!this.engine)return;const a=this.engine.snapshot(),o=this.engine.newType(`Structure ${this.engine.types.length+1}`,this.defaultRule());this.activeId=o.id,this.host.pushStructureUndo(a,this.engine.snapshot()),this.render()}),this.syncSliders(),this.render()}defaultRule(){const t=this.host.activeFilament();return{kind:"single",filament:t>1?t:Math.min(2,this.host.filaments().length)}}setMode(t){this.mode=t,this.els.modeAdd.setAttribute("aria-checked",String(t==="add")),this.els.modeCut.setAttribute("aria-checked",String(t==="cut")),this.invalidateHover()}syncSliders(){this.els.angle.value=String(this.params.angle),this.els.radius.value=String(this.params.radius),this.els.angleOut.textContent=`${this.params.angle}°`,this.els.radiusOut.textContent=`${this.params.radius} mm`}invalidateHover(){this.cache=null}async analyse(t){const e=++this.token;this.engine=null,this.activeId=0,this.cache=null,this.status="analysing",this.progressText="Finding pieces…",this.hoverEpoch=new Uint32Array(t.indices.length/3),this.epoch=0,this.render();try{const i=await this.host.worker.analyze(t.positions,t.indices,(o,r,c)=>{e===this.token&&(this.progressText=`${o}… ${c>1?Math.round(100*r/c)+"%":""}`,this.els.status.textContent=this.progressText)});if(e!==this.token||this.host.model()!==t)return;this.engine=new Ms(t.positions,t.indices,i);const n=i.stats.map(o=>Math.max(o.max[0]-o.min[0],o.max[1]-o.min[1]));n.sort((o,r)=>o-r);const a=n[Math.floor(n.length/2)]??16;this.params.radius=Math.max(1,Math.min(40,Math.round(a*.55*2)/2)),this.syncSliders(),this.status="ready"}catch(i){if(e!==this.token)return;this.status="failed",this.progressText=`Piece analysis failed: ${i.message}`}this.render()}reset(){this.token++,this.engine=null,this.status="idle",this.cache=null,this.render()}rebind(t){this.engine?.rebind(t.positions,t.indices)}get layer(){return this.engine&&this.engine.types.some(t=>t.selections.length)?this.engine.layer:null}get activeType(){return this.engine?.types.find(t=>t.id===this.activeId)??null}hover(t,e){const i=this.engine;if(!i)return this.status==="analysing"?U(this.progressText):"";if(t<0)return this.clearHover(),"";const n=e||this.mode==="cut"?"cut":"add",a=n==="cut"?{angle:ve,radius:this.params.radius}:this.params,o=`${a.angle}/${a.radius}`,r=i.groupOfFace(t),c=i.analysis.corr[t],l=this.cache;if(!(l&&l.mode===n&&l.group===r&&l.key===o&&this.hoverEpoch[c]===this.epoch)){const p=i.preview(t,a,n==="cut");this.host.viewer.setHighlight(p.faces,n==="cut"?"cut":"add"),this.epoch++;for(const m of p.refRegion)this.hoverEpoch[m]=this.epoch;this.cache={mode:n,group:r,key:o,faces:p.faces.length,refFaces:p.refRegion.length,copies:p.copies}}const d=this.cache,h=this.activeType,u=d.copies>1?`on <b>${d.copies}</b> identical pieces`:"on this piece (no identical copies)";return n==="cut"?`Cut out <b>${d.refFaces.toLocaleString()}</b> triangles ${u}${h?` from “${U(h.name)}”`:""} · click`:`Structure: <b>${d.refFaces.toLocaleString()}</b> triangles ${u} · click to add${h?` to “${U(h.name)}”`:""}`}clearHover(){this.cache&&this.host.viewer.setHighlight(null),this.cache=null}click(t,e,i){const n=this.engine;if(!n||t<0){this.status==="analysing"&&this.host.toast("Still analysing the pieces. Structure picking starts in a moment.");return}const a=n.snapshot();let o=this.activeType,r=!1;if(i)o&&(r=n.removeSelectionAt(o,t)),r||this.host.toast("Shift+click removes a structure you added. Nothing added here yet.");else if(e||this.mode==="cut")o&&(r=n.addExclusion(o,t,this.params.radius)),r||this.host.toast("Cut out works inside a structure you already added. Add the structure first, then cut the part out of it.");else if(o||(o=n.newType(`Structure ${n.types.length+1}`,this.defaultRule()),this.activeId=o.id),r=n.addSelection(o,t,this.params),!r)this.host.toast(`That is already part of “${o.name}”. Shift+click removes it.`);else{this.applyLayer(),this.invalidateHover(),this.render(),this.findOnOtherPieces(o,a);return}!r&&n.types.length===a.length||(this.applyLayer(),this.host.pushStructureUndo(a,n.snapshot()),this.invalidateHover(),this.render())}async findOnOtherPieces(t,e){const i=this.engine,n=t.selections[t.selections.length-1],a=++this.matchToken,o=()=>a!==this.matchToken||this.engine!==i;this.matchText="Looking for it on the other pieces…",this.renderStatus();const r=await i.autoMatch(t,n,o,(c,l)=>{o()||(this.matchText=`Looking for it on the other pieces… ${c}/${l}`,this.els.status.textContent=this.matchText,this.els.status.hidden=!1)});this.engine===i&&(a===this.matchToken&&(this.matchText=""),r.kinds&&(this.applyLayer(),this.host.toast(`Also found on ${r.pieces} other piece${r.pieces===1?"":"s"}. Check them; Shift+click removes a wrong one.`)),this.host.pushStructureUndo(e,i.snapshot()),this.render())}applyLayer(){const t=this.engine;if(!t)return;t.recompute();const e=this.host.manual(),i=t.layer;for(let n=0;n<i.length;n++)e[n]&&i[n]&&(i[n]=0);this.host.viewer.setLayer(this.layer),this.host.onLayerChanged()}restore(t){this.engine&&(this.matchToken++,this.matchText="",this.engine.restore(t),this.activeType||(this.activeId=this.engine.types.at(-1)?.id??0),this.applyLayer(),this.invalidateHover(),this.render())}render(){this.renderStatus(),this.renderTypes(),this.renderReview(),this.renderPieces()}renderStatus(){const t=this.els.status,e=this.status==="ready";this.els.controls.hidden=!e,this.els.newType.hidden=!e,this.matchText?t.textContent=this.matchText:this.status==="analysing"?t.textContent=this.progressText:this.status==="failed"?t.textContent=this.progressText:e?t.textContent=this.engine.types.length?"":"Hover a structure (for example a flower). It lights up on every identical piece. Click to add it.":t.textContent="Open a model to find its structures.",t.hidden=t.textContent===""}swatch(t,e="",i=""){const n=this.host.filaments()[t-1],a=n?.color??"#999999";return`<button type="button" class="mini-swatch ${i}" style="--swatch:${a};--ink:${fe(a)}" title="${t} ${U(n?.name??"")}" ${e}>${t}</button>`}renderTypes(){const t=this.els.types,e=this.engine;if(!e){t.innerHTML="";return}const i=this.host.filaments();t.innerHTML=e.types.map(n=>{const a=e.instances.filter(h=>h.type===n.id),o=new Set(a.map(h=>h.piece)).size,r=n.selections.filter(h=>h.auto).reduce((h,u)=>h+e.analysis.groups[u.group].members.length,0),c=n.rule,l=(h,u)=>`<button type="button" role="radio" aria-checked="${c.kind===h}" data-act="rule" data-kind="${h}">${u}</button>`;let d="";return c.kind==="single"?d=`<div class="swatch-row">${i.map((h,u)=>this.swatch(u+1,`data-act="single" data-n="${u+1}" aria-pressed="${c.filament===u+1}"`,c.filament===u+1?"on":"")).join("")}</div>`:c.kind==="sequence"?d=`<div class="seq-label">From the head: <span class="hint-inline">click a colour in the order to remove it</span></div><div class="swatch-row seq">${c.filaments.map((h,u)=>this.swatch(h,`data-act="seq-del" data-i="${u}"`,"on")).join('<span class="seq-arrow">›</span>')||'<span class="hint-inline">empty</span>'}</div><div class="seq-label">Add to the order:</div><div class="swatch-row">${i.map((h,u)=>this.swatch(u+1,`data-act="seq-add" data-n="${u+1}"`)).join("")}</div>`:d=`<div class="seq-label">Pick from:</div><div class="swatch-row">${i.map((h,u)=>this.swatch(u+1,`data-act="rnd-toggle" data-n="${u+1}" aria-pressed="${c.filaments.includes(u+1)}"`,c.filaments.includes(u+1)?"on":"")).join("")}</div><label class="rnd-spacing">Same colour at least <input type="number" min="0" max="200" step="1" value="${c.spacing}" data-act="rnd-spacing" id="rnd-spacing-${n.id}"> mm apart</label><button type="button" class="btn btn-quiet" data-act="rnd-shuffle">Shuffle</button>`,`<div class="stype${n.id===this.activeId?" active":""}" data-id="${n.id}">
-          <div class="stype-head">
-            <input class="stype-name" id="stype-name-${n.id}" value="${U(n.name)}" aria-label="Structure name" maxlength="40" spellcheck="false">
-            <button type="button" class="icon-btn" data-act="remove" aria-label="Remove ${U(n.name)}" title="Remove this structure type">×</button>
-          </div>
-          <div class="stype-meta">${a.length?`<b>${a.length.toLocaleString()}</b> on <b>${o}</b> piece${o===1?"":"s"}${r?` (${r} matched automatically)`:""}`:"Nothing added yet"}${n.id===this.activeId?"":' · <button type="button" class="link-btn" data-act="activate">add to this one</button>'}</div>
-          <div class="seg" role="radiogroup" aria-label="Colour rule">${l("single","One colour")}${l("sequence","Sequence")}${l("random","Random")}</div>
-          <div class="rule-body">${d}</div>
-        </div>`}).join(""),t.querySelectorAll(".stype").forEach(n=>{const a=Number(n.dataset.id),o=e.types.find(l=>l.id===a);n.addEventListener("click",l=>{const d=l.target.closest("[data-act]");if(!d){this.activeId!==a&&(this.activeId=a,this.invalidateHover(),this.render());return}this.onCardAction(o,d)});const r=n.querySelector(".stype-name");r.addEventListener("change",()=>{const l=e.snapshot();o.name=r.value.trim()||o.name,this.host.pushStructureUndo(l,e.snapshot()),this.renderReview()}),r.addEventListener("keydown",l=>{l.key==="Enter"&&r.blur(),l.stopPropagation()});const c=n.querySelector('[data-act="rnd-spacing"]');c?.addEventListener("change",()=>{if(o.rule.kind!=="random")return;const l=e.snapshot();o.rule.spacing=Math.max(0,Number(c.value)||0),this.commit(l)}),c?.addEventListener("keydown",l=>l.stopPropagation())})}commit(t){const e=this.engine;this.applyLayer(),this.host.pushStructureUndo(t,e.snapshot()),this.render()}onCardAction(t,e){const i=this.engine,n=e.dataset.act;if(n==="rnd-spacing")return;const a=i.snapshot(),o=this.host.filaments().length,r=t.rule;switch(n){case"activate":this.activeId=t.id,this.invalidateHover(),this.render();return;case"remove":i.types=i.types.filter(c=>c.id!==t.id),this.activeId===t.id&&(this.activeId=i.types.at(-1)?.id??0);break;case"rule":{const c=e.dataset.kind;if(c===r.kind)return;const l=r.kind==="single"?[r.filament]:r.filaments,d=l.length>1?l:[2,3,4].filter(h=>h<=o);c==="single"?t.rule={kind:c,filament:l[0]??2}:c==="sequence"?t.rule={kind:c,filaments:d.length?d:[l[0]??1]}:t.rule={kind:c,filaments:d.length?d:[l[0]??1],seed:1,spacing:0};break}case"single":r.kind==="single"&&(r.filament=Number(e.dataset.n));break;case"seq-add":r.kind==="sequence"&&r.filaments.push(Number(e.dataset.n));break;case"seq-del":r.kind==="sequence"&&r.filaments.splice(Number(e.dataset.i),1);break;case"rnd-toggle":if(r.kind==="random"){const c=Number(e.dataset.n);r.filaments=r.filaments.includes(c)?r.filaments.filter(l=>l!==c):[...r.filaments,c].sort((l,d)=>l-d)}break;case"rnd-shuffle":r.kind==="random"&&(r.seed=(r.seed*48271+11)%2147483647);break;default:return}this.commit(a)}pieceLabel(t){const e=this.engine.analysis,i=e.chainPosition[t],a=!(e.chainOrder.length>2)||i<0?"loose":t===e.chainOrder[0]?"head":t===e.chainOrder.at(-1)?"tail":`chain ${i+1}`;return`Piece ${t+1} · ${a}`}renderReview(){const t=this.els.review,e=this.engine,i=this.activeType;if(!e||!i||!i.selections.length){t.innerHTML="";return}const n=e.analysis,a=e.coveredGroups(i),o=n.groups.map((c,l)=>({g:c,i:l})).filter(({i:c})=>!a.has(c)).sort((c,l)=>{const d=n.chainPosition[c.g.ref],h=n.chainPosition[l.g.ref];return(d<0?1e9:d)-(h<0?1e9:h)});if(!o.length){t.innerHTML=`<p class="hint">“${U(i.name)}” is on every kind of piece.</p>`;return}const r=12;t.innerHTML=`<div class="review-head">Pieces without “${U(i.name)}” (${o.reduce((c,l)=>c+l.g.members.length,0)}). Click one to zoom to it, then hover its structure.</div><ul class="review-list">${o.slice(0,r).map(({g:c,i:l})=>`<li><button type="button" data-group="${l}"><em>${c.members.length>1?`<b>${c.members.length} ×</b> `:""}${this.pieceLabel(c.ref)}</em><span>${n.stats[c.ref].faces.toLocaleString()} tri</span></button></li>`).join("")}${o.length>r?`<li class="hint">…and ${o.length-r} more kinds</li>`:""}</ul>`,t.querySelectorAll("button[data-group]").forEach(c=>c.addEventListener("click",()=>this.showGroup(Number(c.dataset.group),!0)))}showGroup(t,e){const i=this.engine;if(!i)return;const n=i.analysis,a=n.groups[t];let o=0;for(const l of a.members)o+=n.pieces.pieceStart[l+1]-n.pieces.pieceStart[l];const r=new Uint32Array(o);let c=0;for(const l of a.members)for(let d=n.pieces.pieceStart[l];d<n.pieces.pieceStart[l+1];d++)r[c++]=n.pieces.pieceFaces[d];if(this.cache=null,this.host.viewer.setHighlight(r,"info"),e){const l=n.stats[a.ref];this.host.viewer.frameBox(l.min,l.max)}}renderPieces(){const t=this.els.pieces,e=this.engine;if(!e){t.innerHTML=`<p class="hint">${this.status==="analysing"?U(this.progressText):"Pieces appear here once a model is analysed."}</p>`;return}const i=e.analysis,n=i.groups.map((r,c)=>({g:r,i:c})).filter(({g:r})=>r.members.length>1).sort((r,c)=>c.g.members.length-r.g.members.length),a=i.groups.length-n.length,o=i.chainOrder.length;t.innerHTML=`<p class="hint"><b>${i.pieces.count.toLocaleString()}</b> pieces, <b>${i.groups.length}</b> different shapes · analysed in ${i.seconds.toFixed(1)} s</p><ul class="review-list">${n.slice(0,8).map(({g:r,i:c})=>`<li><button type="button" data-group="${c}"><em><b>${r.members.length} ×</b> identical piece</em><span>${i.stats[r.ref].faces.toLocaleString()} tri</span></button></li>`).join("")}${a?`<li class="hint">${a} one-off piece${a===1?"":"s"}</li>`:""}</ul>`+(o>2?`<div class="chain-row"><span>Chain of <b>${o}</b> linked pieces</span><span class="chain-actions"><button type="button" class="btn btn-quiet" id="chain-head">Show head</button><button type="button" class="btn btn-quiet" id="chain-swap">Swap head and tail</button></span></div>`:'<p class="hint">No chain of linked pieces found, so sequences follow the piece order.</p>'),t.querySelectorAll("button[data-group]").forEach(r=>r.addEventListener("click",()=>this.showGroup(Number(r.dataset.group),!1))),t.querySelector("#chain-head")?.addEventListener("click",()=>this.showHead()),t.querySelector("#chain-swap")?.addEventListener("click",()=>{e.reverseChain(),this.applyLayer(),this.render(),this.showHead(),this.host.toast("Head and tail swapped. Sequences now start from the other end.")})}showHead(){const t=this.engine;if(!t||!t.analysis.chainOrder.length)return;const e=t.analysis,i=e.chainOrder[0],n=e.pieces.pieceFaces.slice(e.pieces.pieceStart[i],e.pieces.pieceStart[i+1]);this.cache=null,this.host.viewer.setHighlight(n,"info");const a=e.stats[i];this.host.viewer.frameBox(a.min,a.max)}}const $s="0.2.0",k=s=>document.getElementById(s),f={filaments:us.map(s=>({...s})),active:2,tool:"orbit",model:null,isSample:!1,defaults:new Uint8Array(0),busy:!1,exporting:!1,usage:[],manual:new Uint8Array(0),altDown:!1},M=new cs(k("viewer")),Ot=new ls,X=[],dt=[];let Y=null;const L=new Ss({viewer:M,worker:Ot,model:()=>f.model,filaments:()=>f.filaments,activeFilament:()=>f.active,manual:()=>f.manual,toast:(s,t)=>j(s,t),pushStructureUndo(s,t){ye({kind:"structures",before:s,after:t})},onLayerChanged:()=>xt()});function ye(s){X.push(s),X.length>200&&X.shift(),dt.length=0,Mt()}function Ls(s){const t=L.layer;if(t&&t[s])return t[s];const e=f.model.faceState[s];return e!==0?e:f.defaults[s]}const Cs=new fs(k("filaments"),{onSelect(s){f.active=s,(f.tool==="orbit"||f.tool==="eraser")&&B(L.status==="ready"?"structure":"pencil"),D()},onColor(s,t,e){const i=f.filaments[s];i.color=t,i.autoName&&(i.name=e??pe(t)),ot(),D(),L.render()},onRename(s,t){f.filaments[s].name=t,f.filaments[s].autoName=!1,D(),ft(),L.render()},onAdd(){f.filaments.length>=mt||(f.filaments.push(be()),ot(),D(),ft(),L.render())},onRemoveLast(){const s=f.filaments.length;if(s<=1)return;const t=(f.usage[s]??0)+Fs(s);if(t>0){j(`Filament ${s} is still used (${t.toLocaleString()} triangles or parts). Repaint them or change the part base first.`,!0);return}f.filaments.pop(),f.active>f.filaments.length&&(f.active=f.filaments.length),ot(),D(),ft(),L.render()}});function be(){const s=new Set(f.filaments.flatMap(e=>[e.color.toUpperCase(),e.name.toLowerCase()])),t=gt.find(e=>!s.has(e.hex.toUpperCase())&&!s.has(e.name.toLowerCase()))??gt[10];return{name:t.name,color:t.hex,autoName:!0}}function Fs(s){return f.model&&!f.isSample?f.model.parts.filter(t=>t.extruder===s).length:0}function ot(){M.setPalette(f.filaments.map(t=>t.color));const s=k("brand-mark");s.innerHTML="",f.filaments.slice(0,8).forEach((t,e)=>{const i=document.createElement("i");i.style.background=t.color,i.style.height=`${[22,16,19,13,18,15,20,14][e]}px`,s.appendChild(i)})}function D(){Cs.render(f.filaments,f.active,f.usage)}let se=0;function xt(){clearTimeout(se),se=window.setTimeout(we,250)}function we(){const s=f.model;if(!s||f.exporting)return;const t=new Array(40).fill(0),e=s.faceState,i=f.defaults,n=L.layer;for(let a=0;a<e.length;a++){if(n&&n[a]){t[n[a]]++;continue}const o=e[a];o!==N&&t[o!==0?o:i[a]]++}f.usage=t,D(),xe()}async function At(s,t){f.model=s,f.isSample=t,X.length=0,dt.length=0,Mt(),s.filamentColors.length&&(f.filaments=s.filamentColors.slice(0,mt).map(i=>({name:pe(i),color:i,autoName:!0})));const e=Math.min(mt,Math.max(4,s.stats.maxState,...s.parts.map(i=>i.extruder)));for(;f.filaments.length<e;)f.filaments.push(be());f.active>f.filaments.length&&(f.active=2),f.defaults=ie(s.parts,s.indices.length/3),f.manual=new Uint8Array(s.indices.length/3),ot(),await M.setModel(s,f.defaults,(i,n)=>kt("Preparing the 3D view",i,n)),L.analyse(s),k("file-name").textContent=s.name,k("file-name").title=s.name,we(),D(),xe(),ft(),Ts()}function xe(){const s=f.model,t=k("file-stats");if(!s){t.innerHTML="";return}const e=s.indices.length/3;let i=0;const n=s.faceState,a=L.layer;for(let r=0;r<e;r++)(n[r]!==0||a&&a[r])&&i++;const o=[`<span class="chip-stat"><b>${e.toLocaleString()}</b> triangles</span>`,`<span class="chip-stat"><b>${s.objects.length}</b> object${s.objects.length===1?"":"s"} · <b>${s.parts.length}</b> part${s.parts.length===1?"":"s"}</span>`,`<span class="chip-stat"><b>${i.toLocaleString()}</b> painted${s.subdiv.size?` · <b>${s.subdiv.size.toLocaleString()}</b> brush`:""}</span>`];f.isSample&&o.unshift('<span class="chip-stat chip-sample">Example model</span>'),t.innerHTML=o.join("")}function ft(){const s=f.model,t=k("parts");if(!s){t.innerHTML="";return}const e=o=>f.filaments.map((r,c)=>`<option value="${c+1}"${c+1===o?" selected":""}>${c+1} ${q(r.name)}</option>`).join(""),i=['<div class="parts-scroll">'],n=400;let a=0;s.objects.forEach(o=>{let r=0;for(let c=o.firstPart;c<o.firstPart+o.partCount;c++)r+=s.parts[c].faceCount;i.push(`<div class="object-head"><span>${q(o.name)}</span><span>${r.toLocaleString()} tri</span></div>`);for(let c=o.firstPart;c<o.firstPart+o.partCount;c++){if(a++>=n)continue;const l=s.parts[c];i.push(`<div class="part-row"><span class="part-name" title="${q(l.name)}">${q(l.name)}</span><span class="part-tris">${l.faceCount.toLocaleString()}</span><select id="part-base-${c}" data-part="${c}" aria-label="Base filament for ${q(l.name)}">${e(l.extruder)}</select></div>`)}}),a>n&&i.push(`<div class="part-row"><span class="part-name">…and ${(a-n).toLocaleString()} more parts</span></div>`),i.push("</div>"),t.innerHTML=i.join(""),t.querySelectorAll("select[data-part]").forEach(o=>o.addEventListener("change",()=>{const r=f.model;if(!r||f.exporting)return;const c=Number(o.dataset.part);r.parts[c].extruder=Number(o.value),f.defaults=ie(r.parts,r.indices.length/3),M.setDefaults(f.defaults),xt()}))}function Ts(){const s=f.model?.warnings??[];k("warnings-panel").hidden=s.length===0,k("warnings").innerHTML=s.map(t=>`<li>${q(t)}</li>`).join("")}function q(s){return s.replace(/[&<>"']/g,t=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"})[t])}let at=0;function rt(s,t=""){f.busy=s,k("progress").hidden=!s;for(const e of["btn-open","btn-export","btn-check"])k(e).disabled=s;s&&(at=performance.now(),k("progress-title").textContent=t,kt("Starting",0,1),M.setHover(-1))}function kt(s,t,e){const i=e>0?Math.min(100,t/e*100):0;k("progress-phase").textContent=s,k("progress-pct").textContent=`${i.toFixed(0)}%`,k("progress-bar").style.width=`${i}%`;const n=(performance.now()-at)/1e3;k("progress-foot").textContent=`${n.toFixed(1)} s elapsed`}let ne=0;function j(s,t=!1,e=6e3){const i=k("toast");i.textContent=s,i.classList.toggle("bad",t),i.hidden=!1,clearTimeout(ne),ne=window.setTimeout(()=>i.hidden=!0,e)}async function yt(s){if(f.busy)return;if(!/\.(stl|3mf)$/i.test(s.name)){j(`${s.name} is not an STL or 3MF file.`,!0);return}rt(!0,`Opening ${s.name} (${(s.size/1048576).toFixed(1)} MB)`);const t=f.model,e=f.isSample;L.reset(),M.clearModel(),f.model=null;try{const i=await Ot.load(s,s.name,kt);await At(i,!1);const n=i.stats;j(`Opened ${i.name}: ${n.faces.toLocaleString()} triangles in ${(performance.now()-at)/1e3<10?((performance.now()-at)/1e3).toFixed(1):Math.round((performance.now()-at)/1e3)} s${n.paintedFaces?`, ${n.paintedFaces.toLocaleString()} already painted`:""}.`)}catch(i){j(`Could not open ${s.name}: ${i.message}`,!0,1e4),t&&await At(t,e)}finally{rt(!1)}}k("btn-open").addEventListener("click",()=>k("file-input").click());k("file-input").addEventListener("change",s=>{const t=s.target,e=t.files?.[0];t.value="",e&&yt(e)});let ct=0;window.addEventListener("dragenter",s=>{s.dataTransfer?.types.includes("Files")&&(ct++,k("drop-hint").hidden=!1)});window.addEventListener("dragleave",()=>{ct=Math.max(0,ct-1),ct===0&&(k("drop-hint").hidden=!0)});window.addEventListener("dragover",s=>s.preventDefault());window.addEventListener("drop",s=>{s.preventDefault(),ct=0,k("drop-hint").hidden=!0;const t=s.dataTransfer?.files?.[0];t&&yt(t)});let lt=null;function Et(){return`${f.model.name.replace(/\.(stl|3mf)+$/i,"").replace(/[\\/:*?"<>|]+/g,"_")||"model"}-painted.3mf`}async function It(s){const t=f.model;if(!(!t||f.busy)){rt(!0,s?"Checking the round trip":`Exporting ${Et()}`);try{const e=L.layer,i=t.faceState,n=t.subdiv;let a=t;if(e){const d=i.slice(),h=new Map(n);for(let u=0;u<d.length;u++)e[u]&&(d[u]=e[u],h.delete(u));a={...t,faceState:d,subdiv:h}}f.exporting=!0;const{result:o,model:r,error:c}=await Ot.export(a,s,kt),l=e?{...r,faceState:i,subdiv:n}:r;if(f.model=l,f.exporting=!1,M.rebind(l),L.rebind(l),c||!o)throw new Error(c??"export failed");lt={result:o,filename:Et()},s?Es(o):(rt(!1),await ke(o.blob,Et()))}catch(e){j(`Export failed: ${e.message}`,!0,1e4)}finally{f.exporting=!1,rt(!1)}}}async function ke(s,t){const e=await ys(s,t);j(e.message,!e.ok,e.ok&&e.filename.endsWith(".zip")?12e3:6e3)}function Es(s){const t=s.report,e=n=>`${(n/1048576).toFixed(1)} MB`;k("report-pill").textContent=t.ok?"Match":"Mismatch",k("report-pill").className=`pill ${t.ok?"ok":"bad"}`,k("report-lede").textContent=t.ok?"The exported 3MF was read back and every triangle has the same position and the same filament, including brush-painted sub-triangles.":"The exported 3MF was read back and some triangles differ. Details below.";const i=(n,a,o)=>`<tr><th>${n}</th><td class="${o===void 0?"":o?"ok":"bad"}">${a}</td></tr>`;k("report-table").innerHTML=[i("Triangles",`${t.faces.toLocaleString()} → ${t.facesBack.toLocaleString()}`,t.faces===t.facesBack),i("Vertex positions",t.positionMismatches===0&&t.vertices===t.verticesBack?`${t.vertices.toLocaleString()} identical`:`${t.positionMismatches.toLocaleString()} moved`,t.positionMismatches===0&&t.vertices===t.verticesBack),i("Triangle corners",t.indexMismatches===0?"identical":`${t.indexMismatches.toLocaleString()} differ`,t.indexMismatches===0),i("Filament per triangle",t.colourMismatches===0?`all match (${t.paintedFaces.toLocaleString()} painted)`:`${t.colourMismatches.toLocaleString()} differ`,t.colourMismatches===0),i("Brush-painted triangles",t.subdividedMismatches===0?`${t.subdividedFaces.toLocaleString()} match`:`${t.subdividedMismatches.toLocaleString()} of ${t.subdividedFaces.toLocaleString()} differ`,t.subdividedMismatches===0),i("3MF size",`${e(s.zipBytes)} (model XML ${e(s.xmlBytes)})`),i("Time",`export ${s.seconds.toFixed(1)} s · re-import ${s.verifySeconds.toFixed(1)} s`)].join(""),k("report-notes").innerHTML=t.examples.map(n=>`<li>${q(n)}</li>`).join(""),k("report").hidden=!1,k("report-save").focus()}k("btn-export").addEventListener("click",()=>{It(!1)});k("btn-check").addEventListener("click",()=>{It(!0)});k("report-close").addEventListener("click",()=>k("report").hidden=!0);k("report-save").addEventListener("click",async()=>{lt&&(k("report").hidden=!0,await ke(lt.result.blob,lt.filename))});const As={orbit:"Left-drag rotates, right-drag pans, wheel zooms.",structure:"Hover a structure to see it on every identical piece, click to add it. Alt+click cuts a part out, Shift+click removes. Right-drag rotates.",pencil:"Click or drag to paint whole triangles. Right-drag rotates, middle-drag pans.",fine:"Paints one sixteenth of a triangle (brush-style paint). Right-drag rotates.",eraser:"Click or drag to clear paint back to the part base filament."};function B(s){f.tool=s,document.querySelectorAll(".tool").forEach(t=>t.setAttribute("aria-checked",String(t.dataset.tool===s))),k("tool-hint").textContent=As[s],k("stage").dataset.tool=s,M.setMode(s==="orbit"?"orbit":"paint"),s!=="structure"&&L.clearHover(),M.setHover(-1),k("hover-info").textContent=""}document.querySelectorAll(".tool").forEach(s=>s.addEventListener("click",()=>B(s.dataset.tool)));function Rt(s){const t=f.model;Y&&!Y.has(s)&&Y.set(s,{face:s,before:t.faceState[s],beforeSub:t.subdiv.get(s),beforeManual:f.manual[s],after:0,afterManual:0})}function Ht(s){f.manual[s]=1;const t=L.layer;t&&(t[s]=0)}function ht(s,t,e){const i=f.model;i.faceState[s]=t,t===N&&e?i.subdiv.set(s,e):i.subdiv.delete(s)}let bt=!1;function Rs(s,t,e){const i=f.model;if(!i)return;const n=f.tool==="eraser"?0:f.active,a=i.faceState[s];if(f.tool==="fine"){const o=i.positions,r=i.indices,c=v=>[o[r[s*3+v]*3],o[r[s*3+v]*3+1],o[r[s*3+v]*3+2]],l=M.hitPoint(s,t,e);if(!l)return;const d=de(c(0),c(1),c(2),l).map(v=>Math.max(0,v)),h=d[0]+d[1]+d[2]||1,u=[d[0]/h,d[1]/h,d[2]/h];let p;try{p=a===N?ae(i.subdiv.get(s)):{s:a}}catch{p={s:a===N?0:a}}const m=Qe(p,u,n,2);Rt(s),Ht(s),_(m)?ht(s,m.s):ht(s,N,re(m)),bt=!0}else{const o=L.layer;if(a===n&&!(o&&o[s]))return;Rt(s),Ht(s),a===N&&(bt=!0),ht(s,n)}M.refreshFaces([s])}function Me(){Y=new Map}function Se(){if(!Y)return;const s=f.model,t=[];for(const e of Y.values())e.after=s.faceState[e.face],e.afterSub=s.subdiv.get(e.face),e.afterManual=f.manual[e.face],(e.after!==e.before||e.afterSub!==e.beforeSub||e.afterManual!==e.beforeManual)&&t.push(e);Y=null,t.length&&(ye({kind:"paint",changes:t}),xt())}function Hs(s,t){const e=f.model;if(!e)return;let i=!1,n=!1;for(const a of s){const o=t?a.after:a.before,r=t?a.afterSub:a.beforeSub,c=t?a.afterManual:a.beforeManual;(o===N||e.faceState[a.face]===N)&&(i=!0),f.manual[a.face]&&!c&&(n=!0),f.manual[a.face]=c,c&&Ht(a.face),ht(a.face,o,r)}n&&L.applyLayer(),M.refreshFaces(s.map(a=>a.face)),i&&M.rebuildOverlay(),xt()}function $e(s,t){s.kind==="paint"?Hs(s.changes,t):L.restore(t?s.after:s.before)}function Le(){const s=X.pop();s&&($e(s,!1),dt.push(s),Mt())}function zt(){const s=dt.pop();s&&($e(s,!0),X.push(s),Mt())}function Mt(){k("btn-undo").disabled=X.length===0,k("btn-redo").disabled=dt.length===0}k("btn-undo").addEventListener("click",Le);k("btn-redo").addEventListener("click",zt);const tt=M.canvas;let K=!1,P=null,Pt=!1;function zs(s){const t=f.model,e=t.parts[_e(t.parts,s)],i=t.faceState[s],n=!!L.layer?.[s];if(i===N&&!n)return`Triangle ${s.toLocaleString()} · ${q(e.name)} · brush paint (mixed)`;const a=Ls(s),o=f.filaments[a-1],r=o?`${a} ${q(o.name)}`:`${a}`;return`Triangle ${s.toLocaleString()} · ${q(e.name)} · <i style="background:${o?.color??"#999"}"></i>${r}${n?" (structure)":i===0?" (base)":""}`}function wt(){if(Pt=!1,!P||f.busy||!f.model)return;const s=M.pick(P.x,P.y);if(f.tool==="structure"){M.setHover(-1),k("hover-info").innerHTML=L.hover(s,f.altDown);return}M.setHover(s),K&&s>=0&&Rs(s,P.x,P.y),bt&&(bt=!1,M.rebuildOverlay()),k("hover-info").innerHTML=s>=0?zs(s):""}function Bt(){Pt||(Pt=!0,requestAnimationFrame(wt))}tt.addEventListener("pointerdown",s=>{if(!(s.button!==0||f.tool==="orbit"||f.busy||!f.model)){if(f.tool==="structure"){const t=M.pick(s.clientX,s.clientY);L.click(t,s.altKey,s.shiftKey),P={x:s.clientX,y:s.clientY},f.altDown=s.altKey,wt();return}K=!0,tt.setPointerCapture(s.pointerId),Me(),P={x:s.clientX,y:s.clientY},wt()}});tt.addEventListener("pointermove",s=>{f.tool!=="orbit"&&(P={x:s.clientX,y:s.clientY},f.altDown=s.altKey,!(!K&&s.buttons!==0)&&Bt())});const Ce=()=>{K&&(K=!1,P&&wt(),Se())};tt.addEventListener("pointerup",Ce);tt.addEventListener("pointercancel",Ce);tt.addEventListener("pointerleave",()=>{K||(P=null,M.setHover(-1),L.clearHover(),k("hover-info").textContent="")});M.onCameraChange=()=>{P&&f.tool!=="orbit"&&!K&&Bt()};M.onContextLost=()=>j("The graphics context was lost (often low GPU memory). Reload the page to continue.",!0,2e4);k("btn-fit").addEventListener("click",()=>M.fit());k("btn-top").addEventListener("click",()=>M.topView());const Fe=s=>{s.key!=="Alt"||f.tool!=="structure"||(s.preventDefault(),f.altDown=s.type==="keydown",P&&Bt())};window.addEventListener("keyup",Fe);window.addEventListener("keydown",s=>{Fe(s);const t=s.target;if(t&&(t.tagName==="INPUT"||t.tagName==="SELECT"||t.tagName==="TEXTAREA"))return;if(!k("report").hidden&&s.key==="Escape"){k("report").hidden=!0;return}const e=s.ctrlKey||s.metaKey;if(e&&s.key.toLowerCase()==="z"){s.preventDefault(),s.shiftKey?zt():Le();return}if(e&&s.key.toLowerCase()==="y"){s.preventDefault(),zt();return}if(e||s.altKey)return;const i=s.key.toLowerCase();i==="s"?B("structure"):i==="o"?B("orbit"):i==="p"?B("pencil"):i==="f"?B("fine"):i==="e"?B("eraser"):/^[1-9]$/.test(i)&&Number(i)<=f.filaments.length&&(f.active=Number(i),(f.tool==="orbit"||f.tool==="eraser")&&B(L.status==="ready"?"structure":"pencil"),D())});document.title=`MeshPainter - Multi-Color 3MF Pattern Mapper v${$s}`;B("orbit");ot();D();At(ms(),!0);window.__meshpainter={state:f,async openUrl(s,t){const i=await(await fetch(s)).blob();await yt(new File([i],t??s.split("/").pop()??"model"))},openFile:yt,runExport:It,lastReport:()=>lt?.result.report??null,pick:(s,t)=>M.pick(s,t),structures:L,setTool:B,viewer:M,paintFace:s=>{Me(),Rt(s),ht(s,f.active),M.refreshFaces([s]),Se()}};
+
+let usageTimer = 0;
+function scheduleUsage() {
+  clearTimeout(usageTimer);
+  usageTimer = window.setTimeout(computeUsage, 250);
+}
+function computeUsage() {
+  const m = state.model;
+  if (!m || state.exporting) return;
+  const counts = new Array(40).fill(0);
+  const st = m.faceState;
+  const d = state.defaults;
+  const layer = structures.layer;
+  for (let f = 0; f < st.length; f++) {
+    if (layer && layer[f]) {
+      counts[layer[f]]++;
+      continue;
+    }
+    const s = st[f];
+    if (s !== SUBDIV) counts[s !== 0 ? s : d[f]]++;
+  }
+  state.usage = counts;
+  renderFilaments();
+  renderStats();
+}
+
+// ---------------------------------------------------------------------------
+// Model display
+// ---------------------------------------------------------------------------
+
+/**
+ * @param {ModelData} model
+ * @param {boolean} isSample
+ */
+async function showModel(model, isSample) {
+  state.model = model;
+  state.isSample = isSample;
+  undoStack.length = 0;
+  redoStack.length = 0;
+  updateUndoButtons();
+  if (model.filamentColors.length) {
+    state.filaments = model.filamentColors.slice(0, MAX_FILAMENTS).map((c) => ({ name: nearestColorName(c), color: c, autoName: true }));
+  }
+  const need = Math.min(MAX_FILAMENTS, Math.max(4, model.stats.maxState, ...model.parts.map((p) => p.extruder)));
+  while (state.filaments.length < need) state.filaments.push(nextFilament());
+  if (state.active > state.filaments.length) state.active = 2;
+  state.defaults = buildFaceDefaults(model.parts, model.indices.length / 3);
+  state.manual = new Uint8Array(model.indices.length / 3);
+  applyPalette();
+  await viewer.setModel(model, state.defaults, (d, t) => setProgress('Preparing the 3D view', d, t));
+  void structures.analyse(model);
+  $('file-name').textContent = model.name;
+  $('file-name').title = model.name;
+  computeUsage();
+  renderFilaments();
+  renderStats();
+  renderParts();
+  renderWarnings();
+}
+
+function renderStats() {
+  const m = state.model;
+  const el = $('file-stats');
+  if (!m) {
+    el.innerHTML = '';
+    return;
+  }
+  const F = m.indices.length / 3;
+  let painted = 0;
+  const st = m.faceState;
+  const layer = structures.layer;
+  for (let f = 0; f < F; f++) if (st[f] !== 0 || (layer && layer[f])) painted++;
+  const chips = [
+    `<span class="chip-stat"><b>${F.toLocaleString()}</b> triangles</span>`,
+    `<span class="chip-stat"><b>${m.objects.length}</b> object${m.objects.length === 1 ? '' : 's'} · <b>${m.parts.length}</b> part${m.parts.length === 1 ? '' : 's'}</span>`,
+    `<span class="chip-stat"><b>${painted.toLocaleString()}</b> painted${m.subdiv.size ? ` · <b>${m.subdiv.size.toLocaleString()}</b> brush` : ''}</span>`,
+  ];
+  if (state.isSample) chips.unshift('<span class="chip-stat chip-sample">Example model</span>');
+  el.innerHTML = chips.join('');
+}
+
+function renderParts() {
+  const m = state.model;
+  const root = $('parts');
+  if (!m) {
+    root.innerHTML = '';
+    return;
+  }
+  /** @param {number} sel */
+  const opts = (sel) =>
+    state.filaments.map((f, i) => `<option value="${i + 1}"${i + 1 === sel ? ' selected' : ''}>${i + 1} ${escapeHtml(f.name)}</option>`).join('');
+  /** @type {string[]} */
+  const html = ['<div class="parts-scroll">'];
+  const MAX_ROWS = 400;
+  let rows = 0;
+  m.objects.forEach((o) => {
+    let faces = 0;
+    for (let p = o.firstPart; p < o.firstPart + o.partCount; p++) faces += m.parts[p].faceCount;
+    html.push(`<div class="object-head"><span>${escapeHtml(o.name)}</span><span>${faces.toLocaleString()} tri</span></div>`);
+    for (let p = o.firstPart; p < o.firstPart + o.partCount; p++) {
+      if (rows++ >= MAX_ROWS) continue;
+      const part = m.parts[p];
+      html.push(
+        `<div class="part-row"><span class="part-name" title="${escapeHtml(part.name)}">${escapeHtml(part.name)}</span>` +
+          `<span class="part-tris">${part.faceCount.toLocaleString()}</span>` +
+          `<select id="part-base-${p}" data-part="${p}" aria-label="Base filament for ${escapeHtml(part.name)}">${opts(part.extruder)}</select></div>`,
+      );
+    }
+  });
+  if (rows > MAX_ROWS) html.push(`<div class="part-row"><span class="part-name">…and ${(rows - MAX_ROWS).toLocaleString()} more parts</span></div>`);
+  html.push('</div>');
+  root.innerHTML = html.join('');
+  /** @type {NodeListOf<HTMLSelectElement>} */ (root.querySelectorAll('select[data-part]')).forEach((sel) =>
+    sel.addEventListener('change', () => {
+      const cur = state.model;
+      if (!cur || state.exporting) return;
+      const p = Number(sel.dataset.part);
+      cur.parts[p].extruder = Number(sel.value);
+      state.defaults = buildFaceDefaults(cur.parts, cur.indices.length / 3);
+      viewer.setDefaults(state.defaults);
+      scheduleUsage();
+    }),
+  );
+}
+
+function renderWarnings() {
+  const w = state.model?.warnings ?? [];
+  $('warnings-panel').hidden = w.length === 0;
+  $('warnings').innerHTML = w.map((s) => `<li>${escapeHtml(s)}</li>`).join('');
+}
+
+/**
+ * @param {string} s
+ * @returns {string}
+ */
+function escapeHtml(s) {
+  return s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+}
+
+// ---------------------------------------------------------------------------
+// Busy / progress / toast
+// ---------------------------------------------------------------------------
+
+let busyStart = 0;
+/** @param {boolean} on */
+function setBusy(on, title = '') {
+  state.busy = on;
+  $('progress').hidden = !on;
+  for (const id of ['btn-open', 'btn-export', 'btn-check']) (/** @type {HTMLButtonElement} */ ($(id))).disabled = on;
+  if (on) {
+    busyStart = performance.now();
+    $('progress-title').textContent = title;
+    setProgress('Starting', 0, 1);
+    viewer.setHover(-1);
+  }
+}
+
+/**
+ * @param {string} phase
+ * @param {number} done
+ * @param {number} total
+ */
+function setProgress(phase, done, total) {
+  const pct = total > 0 ? Math.min(100, (done / total) * 100) : 0;
+  $('progress-phase').textContent = phase;
+  $('progress-pct').textContent = `${pct.toFixed(0)}%`;
+  $('progress-bar').style.width = `${pct}%`;
+  const secs = (performance.now() - busyStart) / 1000;
+  $('progress-foot').textContent = `${secs.toFixed(1)} s elapsed`;
+}
+
+let toastTimer = 0;
+/** @param {string} msg */
+function toast(msg, bad = false, ms = 6000) {
+  const t = $('toast');
+  t.textContent = msg;
+  t.classList.toggle('bad', bad);
+  t.hidden = false;
+  clearTimeout(toastTimer);
+  toastTimer = window.setTimeout(() => (t.hidden = true), ms);
+}
+
+// ---------------------------------------------------------------------------
+// Open
+// ---------------------------------------------------------------------------
+
+/** @param {File} file */
+async function openFile(file) {
+  if (state.busy) return;
+  if (!/\.(stl|3mf)$/i.test(file.name)) {
+    toast(`${file.name} is not an STL or 3MF file.`, true);
+    return;
+  }
+  setBusy(true, `Opening ${file.name} (${(file.size / 1048576).toFixed(1)} MB)`);
+  const previous = state.model;
+  const previousSample = state.isSample;
+  // Release the previous model before parsing the next one (keeps peak memory down).
+  structures.reset();
+  viewer.clearModel();
+  state.model = null;
+  try {
+    const model = await worker.load(file, file.name, setProgress);
+    await showModel(model, false);
+    const s = model.stats;
+    toast(`Opened ${model.name}: ${s.faces.toLocaleString()} triangles in ${(performance.now() - busyStart) / 1000 < 10 ? ((performance.now() - busyStart) / 1000).toFixed(1) : Math.round((performance.now() - busyStart) / 1000)} s${s.paintedFaces ? `, ${s.paintedFaces.toLocaleString()} already painted` : ''}.`);
+  } catch (e) {
+    toast(`Could not open ${file.name}: ${(/** @type {Error} */ (e)).message}`, true, 10000);
+    if (previous) await showModel(previous, previousSample);
+  } finally {
+    setBusy(false);
+  }
+}
+
+$('btn-open').addEventListener('click', () => (/** @type {HTMLInputElement} */ ($('file-input'))).click());
+$('file-input').addEventListener('change', (e) => {
+  const input = /** @type {HTMLInputElement} */ (e.target);
+  const f = input.files?.[0];
+  input.value = '';
+  if (f) void openFile(f);
+});
+
+let dragDepth = 0;
+window.addEventListener('dragenter', (e) => {
+  if (!e.dataTransfer?.types.includes('Files')) return;
+  dragDepth++;
+  $('drop-hint').hidden = false;
+});
+window.addEventListener('dragleave', () => {
+  dragDepth = Math.max(0, dragDepth - 1);
+  if (dragDepth === 0) $('drop-hint').hidden = true;
+});
+window.addEventListener('dragover', (e) => e.preventDefault());
+window.addEventListener('drop', (e) => {
+  e.preventDefault();
+  dragDepth = 0;
+  $('drop-hint').hidden = true;
+  const f = e.dataTransfer?.files?.[0];
+  if (f) void openFile(f);
+});
+
+// ---------------------------------------------------------------------------
+// Export + round trip
+// ---------------------------------------------------------------------------
+
+/** @type {{ result: ExportResult; filename: string } | null} */
+let lastExport = null;
+
+/** @returns {string} */
+function exportName() {
+  const m = state.model;
+  const base = m.name.replace(/\.(stl|3mf)+$/i, '').replace(/[\\/:*?"<>|]+/g, '_') || 'model';
+  return `${base}-painted.3mf`;
+}
+
+/** @param {boolean} verify */
+async function runExport(verify) {
+  const m = state.model;
+  if (!m || state.busy) return;
+  setBusy(true, verify ? 'Checking the round trip' : `Exporting ${exportName()}`);
+  try {
+    // Structure paint is baked into a copy of the face paint for the export.
+    const layer = structures.layer;
+    const ownState = m.faceState;
+    const ownSubdiv = m.subdiv;
+    /** @type {ModelData} */
+    let outgoing = m;
+    if (layer) {
+      const combined = ownState.slice();
+      const subdiv = new Map(ownSubdiv);
+      for (let f = 0; f < combined.length; f++) {
+        if (layer[f]) {
+          combined[f] = layer[f];
+          subdiv.delete(f);
+        }
+      }
+      outgoing = { ...m, faceState: combined, subdiv };
+    }
+    state.exporting = true;
+    const { result, model, error } = await worker.export(outgoing, verify, setProgress);
+    // the arrays travelled to the worker and back: switch to the returned copies
+    /** @type {ModelData} */
+    const back = layer ? { ...model, faceState: ownState, subdiv: ownSubdiv } : model;
+    state.model = back;
+    state.exporting = false;
+    viewer.rebind(back);
+    structures.rebind(back);
+    if (error || !result) throw new Error(error ?? 'export failed');
+    lastExport = { result, filename: exportName() };
+    if (verify) showReport(result);
+    else {
+      setBusy(false);
+      await save(result.blob, exportName());
+    }
+  } catch (e) {
+    toast(`Export failed: ${(/** @type {Error} */ (e)).message}`, true, 10000);
+  } finally {
+    state.exporting = false;
+    setBusy(false);
+  }
+}
+
+/**
+ * @param {Blob} blob
+ * @param {string} filename
+ */
+async function save(blob, filename) {
+  const out = await saveBlob(blob, filename);
+  toast(out.message, !out.ok, out.ok && out.filename.endsWith('.zip') ? 12000 : 6000);
+}
+
+/** @param {ExportResult} res */
+function showReport(res) {
+  const r = res.report;
+  /** @param {number} n */
+  const mb = (n) => `${(n / 1048576).toFixed(1)} MB`;
+  $('report-pill').textContent = r.ok ? 'Match' : 'Mismatch';
+  $('report-pill').className = `pill ${r.ok ? 'ok' : 'bad'}`;
+  $('report-lede').textContent = r.ok
+    ? 'The exported 3MF was read back and every triangle has the same position and the same filament, including brush-painted sub-triangles.'
+    : 'The exported 3MF was read back and some triangles differ. Details below.';
+  /**
+   * @param {string} label
+   * @param {string} value
+   * @param {boolean} [good]
+   */
+  const row = (label, value, good) =>
+    `<tr><th>${label}</th><td class="${good === undefined ? '' : good ? 'ok' : 'bad'}">${value}</td></tr>`;
+  $('report-table').innerHTML = [
+    row('Triangles', `${r.faces.toLocaleString()} → ${r.facesBack.toLocaleString()}`, r.faces === r.facesBack),
+    row('Vertex positions', r.positionMismatches === 0 && r.vertices === r.verticesBack ? `${r.vertices.toLocaleString()} identical` : `${r.positionMismatches.toLocaleString()} moved`, r.positionMismatches === 0 && r.vertices === r.verticesBack),
+    row('Triangle corners', r.indexMismatches === 0 ? 'identical' : `${r.indexMismatches.toLocaleString()} differ`, r.indexMismatches === 0),
+    row('Filament per triangle', r.colourMismatches === 0 ? `all match (${r.paintedFaces.toLocaleString()} painted)` : `${r.colourMismatches.toLocaleString()} differ`, r.colourMismatches === 0),
+    row('Brush-painted triangles', r.subdividedMismatches === 0 ? `${r.subdividedFaces.toLocaleString()} match` : `${r.subdividedMismatches.toLocaleString()} of ${r.subdividedFaces.toLocaleString()} differ`, r.subdividedMismatches === 0),
+    row('3MF size', `${mb(res.zipBytes)} (model XML ${mb(res.xmlBytes)})`),
+    row('Time', `export ${res.seconds.toFixed(1)} s · re-import ${res.verifySeconds.toFixed(1)} s`),
+  ].join('');
+  $('report-notes').innerHTML = r.examples.map((e) => `<li>${escapeHtml(e)}</li>`).join('');
+  $('report').hidden = false;
+  $('report-save').focus();
+}
+
+$('btn-export').addEventListener('click', () => void runExport(false));
+$('btn-check').addEventListener('click', () => void runExport(true));
+$('report-close').addEventListener('click', () => ($('report').hidden = true));
+$('report-save').addEventListener('click', async () => {
+  if (!lastExport) return;
+  $('report').hidden = true;
+  await save(lastExport.result.blob, lastExport.filename);
+});
+
+// ---------------------------------------------------------------------------
+// Tools and painting
+// ---------------------------------------------------------------------------
+
+/** @type {Record<Tool, string>} */
+const TOOL_HINTS = {
+  orbit: 'Left-drag rotates, right-drag pans, wheel zooms.',
+  structure: 'Hover a structure to see it on every identical piece, click to add it. Alt+click cuts a part out, Shift+click removes. Right-drag rotates.',
+  pencil: 'Click or drag to paint whole triangles. Right-drag rotates, middle-drag pans.',
+  fine: 'Paints one sixteenth of a triangle (brush-style paint). Right-drag rotates.',
+  eraser: 'Click or drag to clear paint back to the part base filament.',
+};
+
+/** @param {Tool} t */
+function setTool(t) {
+  state.tool = t;
+  /** @type {NodeListOf<HTMLElement>} */ (document.querySelectorAll('.tool')).forEach((b) => b.setAttribute('aria-checked', String(b.dataset.tool === t)));
+  $('tool-hint').textContent = TOOL_HINTS[t];
+  $('stage').dataset.tool = t;
+  viewer.setMode(t === 'orbit' ? 'orbit' : 'paint');
+  if (t !== 'structure') structures.clearHover();
+  viewer.setHover(-1);
+  $('hover-info').textContent = '';
+}
+/** @type {NodeListOf<HTMLElement>} */ (document.querySelectorAll('.tool')).forEach((b) => b.addEventListener('click', () => setTool(/** @type {Tool} */ (b.dataset.tool))));
+
+/** @param {number} f */
+function remember(f) {
+  const m = state.model;
+  if (stroke && !stroke.has(f)) stroke.set(f, { face: f, before: m.faceState[f], beforeSub: m.subdiv.get(f), beforeManual: state.manual[f], after: 0, afterManual: 0 });
+}
+
+/**
+ * Hand paint on a face: it now wins over structure paint.
+ * @param {number} f
+ */
+function markManual(f) {
+  state.manual[f] = 1;
+  const layer = structures.layer;
+  if (layer) layer[f] = 0;
+}
+
+/**
+ * @param {number} f
+ * @param {number} s
+ * @param {string} [sub]
+ */
+function setFace(f, s, sub) {
+  const m = state.model;
+  m.faceState[f] = s;
+  if (s === SUBDIV && sub) m.subdiv.set(f, sub);
+  else m.subdiv.delete(f);
+}
+
+let overlayDirty = false;
+
+/**
+ * @param {number} f
+ * @param {number} clientX
+ * @param {number} clientY
+ */
+function paintFace(f, clientX, clientY) {
+  const m = state.model;
+  if (!m) return;
+  const target = state.tool === 'eraser' ? 0 : state.active;
+  const cur = m.faceState[f];
+  if (state.tool === 'fine') {
+    const P = m.positions;
+    const I = m.indices;
+    /**
+     * @param {number} k
+     * @returns {Vec3}
+     */
+    const V = (k) => [P[I[f * 3 + k] * 3], P[I[f * 3 + k] * 3 + 1], P[I[f * 3 + k] * 3 + 2]];
+    const hit = viewer.hitPoint(f, clientX, clientY);
+    if (!hit) return;
+    const b = /** @type {Vec3} */ (barycentricIn(V(0), V(1), V(2), hit).map((x) => Math.max(0, x)));
+    const sum = b[0] + b[1] + b[2] || 1;
+    /** @type {Vec3} */
+    const bary = [b[0] / sum, b[1] / sum, b[2] / sum];
+    /** @type {PaintNode} */
+    let tree;
+    try {
+      tree = cur === SUBDIV ? decodePaint(m.subdiv.get(f)) : { s: cur };
+    } catch {
+      tree = { s: cur === SUBDIV ? 0 : cur };
+    }
+    const next = paintAtBarycentric(tree, bary, target, 2);
+    remember(f);
+    markManual(f);
+    if (isLeaf(next)) setFace(f, next.s);
+    else setFace(f, SUBDIV, encodePaint(next));
+    overlayDirty = true;
+  } else {
+    const layer = structures.layer;
+    if (cur === target && !(layer && layer[f])) return;
+    remember(f);
+    markManual(f);
+    if (cur === SUBDIV) overlayDirty = true;
+    setFace(f, target);
+  }
+  viewer.refreshFaces([f]);
+}
+
+function beginStroke() {
+  stroke = new Map();
+}
+function endStroke() {
+  if (!stroke) return;
+  const m = state.model;
+  /** @type {Change[]} */
+  const changes = [];
+  for (const c of stroke.values()) {
+    c.after = m.faceState[c.face];
+    c.afterSub = m.subdiv.get(c.face);
+    c.afterManual = state.manual[c.face];
+    if (c.after !== c.before || c.afterSub !== c.beforeSub || c.afterManual !== c.beforeManual) changes.push(c);
+  }
+  stroke = null;
+  if (changes.length) {
+    pushUndo({ kind: 'paint', changes });
+    scheduleUsage();
+  }
+}
+
+/**
+ * @param {Change[]} changes
+ * @param {boolean} forward
+ */
+function applyChanges(changes, forward) {
+  const m = state.model;
+  if (!m) return;
+  let sub = false;
+  let manualCleared = false;
+  for (const c of changes) {
+    const s = forward ? c.after : c.before;
+    const str = forward ? c.afterSub : c.beforeSub;
+    const man = forward ? c.afterManual : c.beforeManual;
+    if (s === SUBDIV || m.faceState[c.face] === SUBDIV) sub = true;
+    if (state.manual[c.face] && !man) manualCleared = true;
+    state.manual[c.face] = man;
+    if (man) markManual(c.face);
+    setFace(c.face, s, str);
+  }
+  if (manualCleared) structures.applyLayer();
+  viewer.refreshFaces(changes.map((c) => c.face));
+  if (sub) viewer.rebuildOverlay();
+  scheduleUsage();
+}
+
+/**
+ * @param {UndoEntry} e
+ * @param {boolean} forward
+ */
+function applyEntry(e, forward) {
+  if (e.kind === 'paint') applyChanges(e.changes, forward);
+  else structures.restore(forward ? e.after : e.before);
+}
+
+function undo() {
+  const c = undoStack.pop();
+  if (!c) return;
+  applyEntry(c, false);
+  redoStack.push(c);
+  updateUndoButtons();
+}
+function redo() {
+  const c = redoStack.pop();
+  if (!c) return;
+  applyEntry(c, true);
+  undoStack.push(c);
+  updateUndoButtons();
+}
+function updateUndoButtons() {
+  (/** @type {HTMLButtonElement} */ ($('btn-undo'))).disabled = undoStack.length === 0;
+  (/** @type {HTMLButtonElement} */ ($('btn-redo'))).disabled = redoStack.length === 0;
+}
+$('btn-undo').addEventListener('click', undo);
+$('btn-redo').addEventListener('click', redo);
+
+// Pointer handling: one GPU pick per animation frame at most.
+const canvas = viewer.canvas;
+let painting = false;
+/** @type {{ x: number; y: number } | null} */
+let pointer = null;
+let frameQueued = false;
+
+/**
+ * @param {number} f
+ * @returns {string}
+ */
+function hoverText(f) {
+  const m = state.model;
+  const p = m.parts[partOfFace(m.parts, f)];
+  const s = m.faceState[f];
+  const fromStructure = !!structures.layer?.[f];
+  if (s === SUBDIV && !fromStructure) return `Triangle ${f.toLocaleString()} · ${escapeHtml(p.name)} · brush paint (mixed)`;
+  const fi = effectiveState(f);
+  const fil = state.filaments[fi - 1];
+  const label = fil ? `${fi} ${escapeHtml(fil.name)}` : `${fi}`;
+  return `Triangle ${f.toLocaleString()} · ${escapeHtml(p.name)} · <i style="background:${fil?.color ?? '#999'}"></i>${label}${fromStructure ? ' (structure)' : s === 0 ? ' (base)' : ''}`;
+}
+
+function onFrame() {
+  frameQueued = false;
+  if (!pointer || state.busy || !state.model) return;
+  const f = viewer.pick(pointer.x, pointer.y);
+  if (state.tool === 'structure') {
+    viewer.setHover(-1);
+    $('hover-info').innerHTML = structures.hover(f, state.altDown);
+    return;
+  }
+  viewer.setHover(f);
+  if (painting && f >= 0) paintFace(f, pointer.x, pointer.y);
+  if (overlayDirty) {
+    overlayDirty = false;
+    viewer.rebuildOverlay();
+  }
+  $('hover-info').innerHTML = f >= 0 ? hoverText(f) : '';
+}
+function queueFrame() {
+  if (!frameQueued) {
+    frameQueued = true;
+    requestAnimationFrame(onFrame);
+  }
+}
+
+canvas.addEventListener('pointerdown', (e) => {
+  if (e.button !== 0 || state.tool === 'orbit' || state.busy || !state.model) return;
+  if (state.tool === 'structure') {
+    const f = viewer.pick(e.clientX, e.clientY);
+    structures.click(f, e.altKey, e.shiftKey);
+    pointer = { x: e.clientX, y: e.clientY };
+    state.altDown = e.altKey;
+    onFrame();
+    return;
+  }
+  painting = true;
+  canvas.setPointerCapture(e.pointerId);
+  beginStroke();
+  pointer = { x: e.clientX, y: e.clientY };
+  onFrame();
+});
+canvas.addEventListener('pointermove', (e) => {
+  if (state.tool === 'orbit') return;
+  pointer = { x: e.clientX, y: e.clientY };
+  state.altDown = e.altKey;
+  // While rotating with the right button, skip hover picks.
+  if (!painting && e.buttons !== 0) return;
+  queueFrame();
+});
+const stop = () => {
+  if (!painting) return;
+  painting = false;
+  if (pointer) onFrame();
+  endStroke();
+};
+canvas.addEventListener('pointerup', stop);
+canvas.addEventListener('pointercancel', stop);
+canvas.addEventListener('pointerleave', () => {
+  if (!painting) {
+    pointer = null;
+    viewer.setHover(-1);
+    structures.clearHover();
+    $('hover-info').textContent = '';
+  }
+});
+viewer.onCameraChange = () => {
+  if (pointer && state.tool !== 'orbit' && !painting) queueFrame();
+};
+// The graphics driver was reset (for example the GPU ran out of memory). The browser
+// normally hands the context back within a second; then the 3D view is rebuilt.
+let contextLost = false;
+viewer.onContextLost = () => {
+  contextLost = true;
+  structures.clearHover();
+  toast('The 3D view stopped because the graphics driver was reset. Waiting for it to come back…', true, 8000);
+  setTimeout(() => {
+    if (contextLost) showGraphicsProblem(new Error('The graphics context was lost and the browser did not give it back.'), true);
+  }, 6000);
+};
+viewer.onContextRestored = async () => {
+  contextLost = false;
+  $('graphics-problem')?.remove();
+  if (state.model && !state.exporting) {
+    await viewer.setModel(state.model, state.defaults);
+    viewer.setLayer(structures.layer);
+  }
+  toast('3D view restored.');
+};
+
+/**
+ * Explain that WebGL is unavailable and how to get it back.
+ * @param {unknown} err
+ * @param {boolean} midSession true if the view worked before (painting is still in memory)
+ */
+function showGraphicsProblem(err, midSession) {
+  if (document.getElementById('graphics-problem')) return;
+  const detail = err instanceof Error ? err.message : String(err);
+  const box = document.createElement('div');
+  box.className = 'overlay';
+  box.id = 'graphics-problem';
+  box.innerHTML = `
+    <div class="report-card problem-card" role="alert">
+      <div class="report-head"><h3>${midSession ? 'The 3D view stopped' : 'Your browser could not start 3D graphics'}</h3><span class="pill bad">WebGL off</span></div>
+      <p class="report-lede">${
+        midSession
+          ? 'The browser switched off 3D graphics (WebGL) while a model was open. Your painting is still in memory: use Export 3MF now to keep it, then follow the steps below and reload the page.'
+          : 'Mesh Painter needs WebGL to show models, and the browser refused to start it. Nothing is wrong with your files.'
+      }</p>
+      <ol class="problem-steps">
+        <li><b>Close every Chrome window and open Chrome again.</b> After a graphics crash (for example while a very large model was open) Chrome turns 3D off until it restarts.</li>
+        <li>In Chrome's Settings, under <b>System</b>, turn on <b>Use graphics acceleration when available</b>, then relaunch.</li>
+        <li>Type <code>chrome://gpu</code> in the address bar. Next to <b>WebGL</b> it should say <b>Hardware accelerated</b>.</li>
+      </ol>
+      <p class="problem-detail">Browser message: ${escapeHtml(detail)}</p>
+    </div>`;
+  ($('stage') ?? document.body).appendChild(box);
+  for (const id of midSession ? ['btn-open', 'btn-check'] : ['btn-open', 'btn-export', 'btn-check']) {
+    const b = /** @type {HTMLButtonElement | null} */ (document.getElementById(id));
+    if (b) {
+      b.disabled = true;
+      b.title = '3D graphics are switched off in this browser';
+    }
+  }
+}
+
+$('btn-fit').addEventListener('click', () => viewer.fit());
+$('btn-top').addEventListener('click', () => viewer.topView());
+
+/** @param {KeyboardEvent} e */
+const altChanged = (e) => {
+  if (e.key !== 'Alt' || state.tool !== 'structure') return;
+  e.preventDefault();
+  state.altDown = e.type === 'keydown';
+  if (pointer) queueFrame();
+};
+window.addEventListener('keyup', altChanged);
+window.addEventListener('keydown', (e) => {
+  altChanged(e);
+  const t = /** @type {HTMLElement} */ (e.target);
+  if (t && (t.tagName === 'INPUT' || t.tagName === 'SELECT' || t.tagName === 'TEXTAREA')) return;
+  if (!$('report').hidden && e.key === 'Escape') {
+    $('report').hidden = true;
+    return;
+  }
+  const mod = e.ctrlKey || e.metaKey;
+  if (mod && e.key.toLowerCase() === 'z') {
+    e.preventDefault();
+    if (e.shiftKey) redo();
+    else undo();
+    return;
+  }
+  if (mod && e.key.toLowerCase() === 'y') {
+    e.preventDefault();
+    redo();
+    return;
+  }
+  if (mod || e.altKey) return;
+  const k = e.key.toLowerCase();
+  if (k === 's') setTool('structure');
+  else if (k === 'o') setTool('orbit');
+  else if (k === 'p') setTool('pencil');
+  else if (k === 'f') setTool('fine');
+  else if (k === 'e') setTool('eraser');
+  else if (/^[1-9]$/.test(k) && Number(k) <= state.filaments.length) {
+    state.active = Number(k);
+    if (state.tool === 'orbit' || state.tool === 'eraser') setTool(structures.status === 'ready' ? 'structure' : 'pencil');
+    renderFilaments();
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Start with the example model
+// ---------------------------------------------------------------------------
+
+document.title = `MeshPainter - Multi-Color 3MF Pattern Mapper v${VERSION}`;
+setTool('orbit');
+applyPalette();
+renderFilaments();
+void showModel(makeSampleModel(), true);
+
+// Hook for automated browser tests (loads a URL as if it were dropped).
+(/** @type {{ __meshpainter: unknown }} */ (/** @type {unknown} */ (window))).__meshpainter = {
+  state,
+  /**
+   * @param {string} url
+   * @param {string} [name]
+   */
+  async openUrl(url, name) {
+    const r = await fetch(url);
+    const b = await r.blob();
+    await openFile(new File([b], name ?? url.split('/').pop() ?? 'model'));
+  },
+  openFile,
+  runExport,
+  lastReport: () => lastExport?.result.report ?? null,
+  pick: (x, y) => viewer.pick(x, y),
+  structures,
+  setTool,
+  viewer,
+  paintFace: (f) => {
+    beginStroke();
+    remember(f);
+    setFace(f, state.active);
+    viewer.refreshFaces([f]);
+    endStroke();
+  },
+};
