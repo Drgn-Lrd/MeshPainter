@@ -60,7 +60,7 @@ export class ModelWorker {
   pending = new Map();
 
   constructor() {
-    this.worker = new Worker(new URL('./model-worker.js?v=39e604d1e9', import.meta.url), { type: 'module' });
+    this.worker = new Worker(new URL('./model-worker.js?v=d45336d55c', import.meta.url), { type: 'module' });
     this.worker.onmessage = (ev) => {
       const m = ev.data;
       const p = this.pending.get(m.id);

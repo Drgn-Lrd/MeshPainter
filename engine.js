@@ -4,7 +4,7 @@
  * model-worker.js (files, export, analysis) and viewer.js (3D view).
  */
 import { Viewer } from './viewer.js?v=da2fac7054';
-import { ModelWorker } from './worker-client.js?v=14100a083e';
+import { ModelWorker } from './worker-client.js?v=6eaa5528be';
 import { FilamentPanel, DEFAULT_FILAMENTS } from './filament-panel.js?v=9ecc609c0a';
 /** @typedef {import('./filament-panel.js').Filament} Filament */
 import { BASIC_COLORS, nearestColorName } from './colors.js?v=0dda646d26';
@@ -16,7 +16,7 @@ import { decodePaint, encodePaint, isLeaf, paintAtBarycentric, barycentricIn } f
 /** @typedef {import('./paint-codec.js').PaintNode} PaintNode */
 /** @typedef {import('./paint-codec.js').Vec3} Vec3 */
 /** @typedef {import('./worker-client.js').ExportResult} ExportResult */
-import { StructureController } from './structure-panel.js?v=5c24a8f849';
+import { StructureController } from './structure-panel.js?v=eeb3b9bef2';
 /** @typedef {import('./structure-engine.js').StructureType} StructureType */
 
 /** @typedef {'orbit' | 'structure' | 'pencil' | 'fine' | 'eraser'} Tool */
@@ -36,7 +36,7 @@ import { StructureController } from './structure-panel.js?v=5c24a8f849';
  * @typedef {{ kind: 'paint'; changes: Change[] } | { kind: 'structures'; before: StructureType[]; after: StructureType[] }} UndoEntry
  */
 
-import { VERSION } from './version.js?v=4d0757cc81';
+import { VERSION } from './version.js?v=8a54183a1c';
 
 /**
  * Shorthand for document.getElementById (typed loosely: the elements are known from index.html).

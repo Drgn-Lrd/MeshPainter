@@ -5,10 +5,11 @@
  */
 import { findPieces, buildVertexFaces, buildNeighbors } from './mesh-topology.js?v=18fa32f863';
 /** @typedef {import('./mesh-topology.js').PieceTable} PieceTable */
-import { pieceStats, pieceCentroids, PointGrid, registerPieces, angularHistogram, applyZ } from './piece-matching.js?v=7ec7bd113b';
+import { pieceStats, makeShape, shapeGrid, matchShapes, applyZ } from './piece-matching.js?v=f6f03e4619';
+/** @typedef {import('./piece-matching.js').Shape} Shape */
 /** @typedef {import('./piece-matching.js').PieceStats} PieceStats */
 /** @typedef {import('./piece-matching.js').ZTransform} ZTransform */
-import { findJoints, buildChain } from './piece-chain.js?v=27b7717146';
+import { findJoints, buildChain } from './piece-chain.js?v=d247fe708c';
 /** @typedef {import('./piece-chain.js').JointEdge} JointEdge */
 
 /**
@@ -16,7 +17,7 @@ import { findJoints, buildChain } from './piece-chain.js?v=27b7717146';
  * @property {number} ref
  * @property {number[]} members
  * @property {ZTransform[]} transforms member -> reference transform (identity for the reference)
- * @property {number} worstRms worst registration residual of the group (mm)
+ * @property {number} worstRms worst surface distance (RMS) of a member to the reference (mm)
  */
 
 /**
@@ -43,20 +44,40 @@ import { findJoints, buildChain } from './piece-chain.js?v=27b7717146';
 const near = (a, b, tol) => Math.abs(a - b) <= tol * Math.max(Math.abs(a), Math.abs(b), 1e-9);
 
 /**
+ * Quick test before the (slower) shape comparison: size, volume and spread must
+ * agree. Loose enough for simplified meshes, where copies of the same piece get
+ * different triangles (the triangle count is not compared at all).
  * @param {PieceStats} s
  * @param {PieceStats} r
  * @returns {boolean}
  */
-function sameSignature(s, r) {
+function similarStats(s, r) {
   return (
-    near(s.faces, r.faces, 0.03) &&
-    near(s.area, r.area, 0.01) &&
-    near(s.volume, r.volume, 0.015) &&
-    Math.abs(s.max[2] - s.min[2] - (r.max[2] - r.min[2])) < 0.08 &&
-    near(s.ixx, r.ixx, 0.03) &&
-    near(s.iyy, r.iyy, 0.03)
+    near(s.area, r.area, 0.025) &&
+    near(s.volume, r.volume, 0.025) &&
+    near(s.ixx, r.ixx, 0.05) &&
+    near(s.iyy, r.iyy, 0.05) &&
+    Math.abs(s.max[2] - s.min[2] - (r.max[2] - r.min[2])) <= Math.max(0.3, 0.03 * (r.max[2] - r.min[2]))
   );
 }
+
+/**
+ * How different two pieces' statistics are (for trying the likeliest group first).
+ * @param {PieceStats} s
+ * @param {PieceStats} r
+ */
+const statDistance = (s, r) =>
+  Math.abs(s.area - r.area) / r.area + Math.abs(s.volume - r.volume) / Math.max(r.volume, 1e-9) + Math.abs(s.ixx - r.ixx) / Math.max(r.ixx, 1e-9);
+
+/**
+ * A member must have this fraction of its surface points on the reference's
+ * surface (within matchTolerance), and the other way round. Copies of a piece
+ * score 100 %; pieces that differ by a feature (a longer tail tip, a different
+ * claw) score below 99 %.
+ */
+const SAME_SHAPE = 0.99;
+/** at most this many candidate groups are tried for one piece */
+const MAX_TRIES = 6;
 
 /**
  * @param {PieceStats} s
@@ -82,65 +103,59 @@ export function analyze(positions, indices, onProgress) {
   const neighbors = buildNeighbors(indices, vf);
 
   // --- identical groups -------------------------------------------------------
+  // Every piece is compared with the reference piece of each group whose
+  // statistics are close; it joins the first group whose shape matches and
+  // otherwise starts a new group (and becomes its reference).
   const groupOfPiece = new Int32Array(pieces.count).fill(-1);
   /** @type {PieceGroup[]} */
   const groups = [];
+  /** @type {Shape[]} shapes of the reference pieces */
+  const refShapes = [];
   const corr = new Uint32Array(F);
   for (let f = 0; f < F; f++) corr[f] = f;
-  // candidate buckets by signature, largest pieces first
-  const order = Array.from({ length: pieces.count }, (_, i) => i).sort((a, b) => stats[b].faces - stats[a].faces);
-  /** @type {number[][]} */
-  const buckets = [];
-  for (const p of order) {
-    const b = buckets.find((b) => sameSignature(stats[p], stats[b[0]]));
-    if (b) b.push(p);
-    else buckets.push([p]);
-  }
-  let registered = 0;
-  const toRegister = buckets.reduce((n, b) => n + (b.length > 1 ? b.length - 1 : 0), 0);
-  for (let bucket of buckets) {
-    while (bucket.length) {
-      const ref = Math.min(...bucket); // lowest index = stable choice
-      /** @type {PieceGroup} */
-      const group = { ref, members: [ref], transforms: [IDENTITY(stats[ref])], worstRms: 0 };
-      groupOfPiece[ref] = groups.length;
-      /** @type {number[]} */
-      const rest = [];
-      if (bucket.length > 1) {
-        const rc = pieceCentroids(positions, indices, pieces, ref);
-        const grid = new PointGrid(rc.pts, 0.3);
-        const rHist = angularHistogram(rc.pts, rc.area, stats[ref].cx, stats[ref].cy);
-        const refStart = pieces.pieceStart[ref];
-        for (const q of bucket) {
-          if (q === ref) continue;
-          const qc = pieceCentroids(positions, indices, pieces, q);
-          const reg = registerPieces(qc.pts, qc.area, stats[q], grid, rc.pts, rHist, stats[ref]);
-          registered++;
-          onProgress?.('Matching identical pieces', registered, toRegister);
-          if (reg.inliers < 0.97 || reg.rms > 0.12) {
-            rest.push(q);
-            continue;
-          }
-          group.members.push(q);
-          group.transforms.push(reg.t);
-          group.worstRms = Math.max(group.worstRms, reg.rms);
-          groupOfPiece[q] = groups.length;
-          // face correspondence q -> ref
-          const tmp = [0, 0, 0];
-          const qs = pieces.pieceStart[q];
-          const n = qc.area.length;
-          for (let i = 0; i < n; i++) {
-            applyZ(reg.t, qc.pts[i * 3], qc.pts[i * 3 + 1], qc.pts[i * 3 + 2], tmp);
-            let j = grid.nearest(tmp[0], tmp[1], tmp[2], 1);
-            if (j < 0) j = grid.nearest(tmp[0], tmp[1], tmp[2], 5);
-            if (j >= 0) corr[pieces.pieceFaces[qs + i]] = pieces.pieceFaces[refStart + j];
-          }
-        }
+  /** @param {number} p */
+  const facesOf = (p) => pieces.pieceFaces.subarray(pieces.pieceStart[p], pieces.pieceStart[p + 1]);
+  const tmp = [0, 0, 0];
+  const hit = [0, 0, 0, 0];
+  for (let p = 0; p < pieces.count; p++) {
+    onProgress?.('Matching identical pieces', p, pieces.count);
+    const candidates = groups
+      .map((g, gi) => gi)
+      .filter((gi) => similarStats(stats[p], stats[groups[gi].ref]))
+      .sort((a, b) => statDistance(stats[p], stats[groups[a].ref]) - statDistance(stats[p], stats[groups[b].ref]))
+      .slice(0, MAX_TRIES);
+    /** @type {Shape | null} */
+    let shape = null;
+    let joined = false;
+    for (const gi of candidates) {
+      shape ??= makeShape(positions, indices, facesOf(p));
+      const m = matchShapes(shape, refShapes[gi], positions, indices, { minInside: SAME_SHAPE });
+      if (m.inside < SAME_SHAPE) continue;
+      const group = groups[gi];
+      group.members.push(p);
+      group.transforms.push(m.t);
+      group.worstRms = Math.max(group.worstRms, m.rms);
+      groupOfPiece[p] = gi;
+      // face correspondence: the reference face under each face's centre
+      const rGrid = shapeGrid(refShapes[gi], positions, indices);
+      const faces = facesOf(p);
+      for (let i = 0; i < faces.length; i++) {
+        const f = faces[i];
+        const a = indices[f * 3] * 3, b = indices[f * 3 + 1] * 3, c = indices[f * 3 + 2] * 3;
+        applyZ(m.t, (positions[a] + positions[b] + positions[c]) / 3, (positions[a + 1] + positions[b + 1] + positions[c + 1]) / 3, (positions[a + 2] + positions[b + 2] + positions[c + 2]) / 3, tmp);
+        const k = rGrid.closest(tmp[0], tmp[1], tmp[2], 5, hit);
+        if (k >= 0) corr[f] = rGrid.faces[k];
       }
-      groups.push(group);
-      bucket = rest;
+      joined = true;
+      break;
+    }
+    if (!joined) {
+      groupOfPiece[p] = groups.length;
+      groups.push({ ref: p, members: [p], transforms: [IDENTITY(stats[p])], worstRms: 0 });
+      refShapes.push(shape ?? makeShape(positions, indices, facesOf(p)));
     }
   }
+  onProgress?.('Matching identical pieces', pieces.count, pieces.count);
 
   // --- joints and chain -----------------------------------------------------------
   onProgress?.('Finding joints', 0, 1);

@@ -5,10 +5,10 @@
  * The result is a paint layer (one byte per face) shown over the manual paint.
  */
 /** @typedef {import('./piece-analysis.js').Analysis} Analysis */
-import { RegionGrower, growStructure, climbSeed } from './region-growing.js?v=8d4da38962';
+import { RegionGrower } from './region-growing.js?v=5d033f3571';
+import { cutStructure, structureTop } from './structure-cut.js?v=b5d24b59a7';
 /** @typedef {import('./region-growing.js').GrowParams} GrowParams */
-import { PointGrid, registerPieces, angularHistogram } from './piece-matching.js?v=7ec7bd113b';
-/** @typedef {import('./piece-matching.js').PieceStats} PieceStats */
+import { makeShape, matchShapes } from './piece-matching.js?v=f6f03e4619';
 
 /**
  * @typedef {| { kind: 'single'; filament: number }
@@ -51,6 +51,13 @@ import { PointGrid, registerPieces, angularHistogram } from './piece-matching.js
  */
 
 export const EXCLUDE_ANGLE = 12;
+
+/**
+ * A structure found on another kind of piece is accepted when this fraction of
+ * its surface lies on the picked structure's surface, and the other way round
+ * (the outlines of two grown regions never agree exactly).
+ */
+const AUTO_MATCH = 0.85;
 
 /**
  * Small deterministic PRNG (mulberry32).
@@ -135,7 +142,7 @@ export class StructureEngine {
    * @returns {number[]}
    */
   refRegion(seedRef, params, excludes = []) {
-    const region = growStructure(this.grower, seedRef, params);
+    const region = this.structureAt(seedRef, params);
     if (!excludes.length) return region;
     const cut = new Set();
     for (const ex of excludes) for (const f of this.grower.grow(ex.seedRef, ex.params)) cut.add(f);
@@ -154,7 +161,7 @@ export class StructureEngine {
     const a = this.analysis;
     const g = this.groupOfFace(face);
     const group = a.groups[g];
-    const refRegion = cut ? this.grower.grow(a.corr[face], params) : growStructure(this.grower, a.corr[face], params);
+    const refRegion = cut ? this.grower.grow(a.corr[face], params) : this.structureAt(a.corr[face], params);
     const n = this.mapRegion(refRegion, group.members);
     return { faces: this.buffer.subarray(0, n), refRegion, group: g, copies: group.members.length };
   }
@@ -346,60 +353,53 @@ export class StructureEngine {
   }
 
   /**
-   * Face centroids, areas and summary stats of a set of faces.
-   * @param {number[]} faces
-   * @returns {{ pts: Float32Array; area: Float32Array; stats: PieceStats }}
+   * The structure under a face of a reference piece.
+   * @param {number} seed
+   * @param {GrowParams} params
+   * @returns {number[]}
    */
-  cloud(faces) {
-    const P = this.positions, I = this.indices;
-    const pts = new Float32Array(faces.length * 3);
-    const area = new Float32Array(faces.length);
-    let A = 0, cx = 0, cy = 0, cz = 0, mz = Infinity;
-    faces.forEach((f, i) => {
-      const a = I[f * 3] * 3, b = I[f * 3 + 1] * 3, c = I[f * 3 + 2] * 3;
-      const x = (P[a] + P[b] + P[c]) / 3, y = (P[a + 1] + P[b + 1] + P[c + 1]) / 3, z = (P[a + 2] + P[b + 2] + P[c + 2]) / 3;
-      pts[i * 3] = x;
-      pts[i * 3 + 1] = y;
-      pts[i * 3 + 2] = z;
-      const ux = P[b] - P[a], uy = P[b + 1] - P[a + 1], uz = P[b + 2] - P[a + 2];
-      const vx = P[c] - P[a], vy = P[c + 1] - P[a + 1], vz = P[c + 2] - P[a + 2];
-      const ar = 0.5 * Math.hypot(uy * vz - uz * vy, uz * vx - ux * vz, ux * vy - uy * vx);
-      area[i] = ar;
-      A += ar;
-      cx += ar * x;
-      cy += ar * y;
-      cz += ar * z;
-      if (z < mz) mz = z;
-    });
-    A = A || 1;
-    return { pts, area, stats: { faces: faces.length, area: A, volume: 0, cx: cx / A, cy: cy / A, cz: cz / A, min: [0, 0, mz], max: [0, 0, 0], ixx: 0, iyy: 0 } };
+  structureAt(seed, params) {
+    return cutStructure(this.grower, seed, params);
   }
 
   /**
-   * Highest face of a piece (where decorations usually are on flat-lying pieces).
+   * Tops of the raised features of a piece whose height above the plate is
+   * within `tol` mm of `height`: faces spread over the piece each climb to their
+   * local top; tops closer than `spacing` to an earlier one are dropped.
    * @param {number} piece
-   * @returns {number}
+   * @param {number} height
+   * @param {number} tol
+   * @param {number} spacing
+   * @param {number} reach climbing reach (mm)
+   * @returns {number[]}
    */
-  topFace(piece) {
+  featureTops(piece, height, tol, spacing, reach) {
     const pt = this.analysis.pieces;
-    const P = this.positions, I = this.indices;
-    let best = pt.pieceFaces[pt.pieceStart[piece]];
-    let bz = -Infinity;
-    for (let k = pt.pieceStart[piece]; k < pt.pieceStart[piece + 1]; k++) {
+    const minZ = this.analysis.stats[piece].min[2];
+    const s = pt.pieceStart[piece], e = pt.pieceStart[piece + 1];
+    const step = Math.max(1, Math.floor((e - s) / 48));
+    /** @type {number[]} */
+    const tops = [];
+    /** @type {[number, number, number][]} */
+    const at = [];
+    for (let k = s; k < e; k += step) {
       const f = pt.pieceFaces[k];
-      const z = P[I[f * 3] * 3 + 2] + P[I[f * 3 + 1] * 3 + 2] + P[I[f * 3 + 2] * 3 + 2];
-      if (z > bz) {
-        bz = z;
-        best = f;
-      }
+      if (this.grower.centroid(f)[2] - minZ < height - tol) continue; // too low to climb to the height
+      const top = structureTop(this.grower, f, reach);
+      const c = this.grower.centroid(top);
+      if (Math.abs(c[2] - minZ - height) > tol) continue;
+      if (at.some((o) => Math.hypot(o[0] - c[0], o[1] - c[1], o[2] - c[2]) < spacing)) continue;
+      tops.push(top);
+      at.push(c);
     }
-    return best;
+    return tops;
   }
 
   /**
    * Look for the structure of `sel` on every kind of piece that does not have
-   * this structure type yet: grow from the top of each piece and accept it when
-   * the shape lines up with the selection (rotation about Z + translation).
+   * this structure type yet: on each raised feature about as high above the plate
+   * as the picked structure, pick the structure there and accept it when its shape
+   * lines up with the picked one (rotation about Z + translation).
    * Adds the matches to `t` and returns how many pieces they cover.
    * @param {StructureType} t
    * @param {Selection} sel
@@ -409,16 +409,21 @@ export class StructureEngine {
    */
   async autoMatch(t, sel, stop, onProgress) {
     const a = this.analysis;
+    const P = this.positions, I = this.indices;
     const region = this.refRegion(sel.seedRef, sel.params, sel.excludes);
     if (region.length < 20) return { kinds: 0, pieces: 0 };
-    const rc = this.cloud(region);
-    const grid = new PointGrid(rc.pts, 0.3);
-    const hist = angularHistogram(rc.pts, rc.area, rc.stats.cx, rc.stats.cy);
+    const target = makeShape(P, I, Uint32Array.from(region));
+    // height of the picked structure's top above the plate
+    const refPiece = a.pieces.pieceOfFace[sel.seedRef];
+    let topZ = -Infinity;
+    for (const f of region) topZ = Math.max(topZ, this.grower.centroid(f)[2]);
+    const height = topZ - a.stats[refPiece].min[2];
+    const R = sel.params.radius;
     const covered = this.coveredGroups(t);
     /** @type {number[]} */
     const todo = [];
     a.groups.forEach((g, i) => {
-      if (!covered.has(i) && a.stats[g.ref].faces >= region.length * 0.5) todo.push(i);
+      if (!covered.has(i) && a.stats[g.ref].area >= target.area * 0.5) todo.push(i);
     });
     let kinds = 0, pieces = 0;
     for (let k = 0; k < todo.length; k++) {
@@ -428,16 +433,23 @@ export class StructureEngine {
       if (stop()) break;
       const gi = todo[k];
       const g = a.groups[gi];
-      const seed = climbSeed(this.grower, this.topFace(g.ref), sel.params);
-      const cand = growStructure(this.grower, seed, sel.params);
-      const ratio = cand.length / region.length;
-      if (ratio < 0.7 || ratio > 1.4) continue;
-      const qc = this.cloud(cand);
-      const reg = registerPieces(qc.pts, qc.area, qc.stats, grid, rc.pts, hist, rc.stats);
-      if (reg.inliers < 0.85 || reg.rms > 0.25) continue;
-      t.selections.push({ group: gi, seedRef: seed, params: { ...sel.params }, excludes: [], auto: true });
-      kinds++;
-      pieces += g.members.length;
+      let found = false;
+      for (const seed of this.featureTops(g.ref, height, Math.max(1.5, 0.2 * height), 0.7 * R, 0.7 * R)) {
+        const cand = this.structureAt(seed, sel.params);
+        if (cand.length < 10) continue;
+        const shape = makeShape(P, I, Uint32Array.from(cand));
+        // similar size (by area, so simplified meshes compare fairly), then similar shape
+        const ratio = shape.area / target.area;
+        if (ratio < 0.7 || ratio > 1.4) continue;
+        const m = matchShapes(shape, target, P, I, { minInside: AUTO_MATCH });
+        if (m.inside < AUTO_MATCH) continue;
+        t.selections.push({ group: gi, seedRef: seed, params: { ...sel.params }, excludes: [], auto: true });
+        found = true;
+      }
+      if (found) {
+        kinds++;
+        pieces += g.members.length;
+      }
     }
     onProgress?.(todo.length, todo.length);
     return { kinds, pieces };

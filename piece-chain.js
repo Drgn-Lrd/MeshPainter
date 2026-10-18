@@ -1,18 +1,20 @@
 /**
  * Joint graph and head-to-tail chain.
- * Two pieces are joined when many of their vertices come within `gap` mm of each
- * other (print-in-place joints have hundreds; rings that only touch have a few).
+ * Two pieces are joined when a large part of their surfaces runs within `gap` mm
+ * of each other. The contact area is measured on the surfaces themselves, so it
+ * does not depend on how finely the model is triangulated: a print-in-place
+ * joint has tens of mm² of contact, pieces that merely touch have a few.
  * The chain is the longest path through the joint graph; other pieces branch off it.
  */
 /** @typedef {import('./mesh-topology.js').PieceTable} PieceTable */
 /** @typedef {import('./piece-matching.js').PieceStats} PieceStats */
-import { PointGrid } from './piece-matching.js?v=7ec7bd113b';
+import { PointGrid, TriangleGrid } from './piece-matching.js?v=f6f03e4619';
 
 /**
  * @typedef {object} JointEdge
  * @property {number} a
  * @property {number} b
- * @property {number} count vertices of the smaller side within the gap
+ * @property {number} area contact area (mm²): surface of the smaller side within the gap of the other piece
  */
 
 /**
@@ -67,6 +69,7 @@ export function pieceVertexLists(indices, vertexCount, pt) {
  * @param {Uint32Array} indices
  * @param {PieceTable} pt
  * @param {PieceStats[]} stats
+ * @param {number} [gap] mm
  * @param {(done: number, total: number) => void} [onProgress]
  * @returns {JointEdge[]}
  */
@@ -81,6 +84,8 @@ export function findJoints(
   const V = positions.length / 3;
   const pv = pieceVertexLists(indices, V, pt);
   const n = pt.count;
+  // typical triangle edge of each piece (from its mean triangle area)
+  const edge = stats.map((s) => Math.sqrt((4 * s.area) / (Math.sqrt(3) * Math.max(1, s.faces))));
   // candidate pairs by overlapping expanded boxes (sweep along x)
   const order = Array.from({ length: n }, (_, i) => i).sort((a, b) => stats[a].min[0] - stats[b].min[0]);
   /** @type {[number, number][]} */
@@ -98,8 +103,10 @@ export function findJoints(
   /** @type {JointEdge[]} */
   const edges = [];
   const P = positions;
+  const near = new Uint8Array(V);
   pairs.forEach(([a, b], idx) => {
-    // overlap box
+    if (onProgress && idx % 20 === 0) onProgress(idx, pairs.length);
+    // vertices of each piece inside the overlap of the two boxes
     const sa = stats[a], sb = stats[b];
     const lo = [0, 1, 2].map((d) => Math.max(sa.min[d], sb.min[d]) - gap);
     const hi = [0, 1, 2].map((d) => Math.min(sa.max[d], sb.max[d]) + gap);
@@ -116,36 +123,123 @@ export function findJoints(
     const va = collect(a);
     const vb = collect(b);
     if (!va.length || !vb.length) return;
-    const [small, large] = va.length <= vb.length ? [va, vb] : [vb, va];
-    const pts = new Float32Array(large.length * 3);
-    large.forEach((v, i) => {
-      pts[i * 3] = P[v * 3];
-      pts[i * 3 + 1] = P[v * 3 + 1];
-      pts[i * 3 + 2] = P[v * 3 + 2];
-    });
-    const grid = new PointGrid(pts, gap);
-    let count = 0;
-    for (const v of small) if (grid.nearest(P[v * 3], P[v * 3 + 1], P[v * 3 + 2], gap) >= 0) count++;
-    if (count > 0) edges.push({ a, b, count });
-    if (onProgress && idx % 50 === 0) onProgress(idx, pairs.length);
+    // keep the vertices that come close to the other piece (generous reach: the
+    // other piece's surface can be closer than its nearest vertex)
+    const reach = gap + 2 * Math.max(edge[a], edge[b]);
+    const ga = vertexGrid(P, va, reach), gb = vertexGrid(P, vb, reach);
+    let any = false;
+    for (const v of va) if (gb.nearest(P[v * 3], P[v * 3 + 1], P[v * 3 + 2], reach) >= 0) (near[v] = 1), (any = true);
+    for (const v of vb) if (ga.nearest(P[v * 3], P[v * 3 + 1], P[v * 3 + 2], reach) >= 0) near[v] = 1;
+    if (any) {
+      // faces of each piece touching such a vertex, then the exact contact area both ways
+      const fa = nearFaces(indices, pt, a, near), fb = nearFaces(indices, pt, b, near);
+      if (fa.length && fb.length) {
+        const area = Math.min(contactArea(P, indices, fa, new TriangleGrid(P, indices, fb), gap), contactArea(P, indices, fb, new TriangleGrid(P, indices, fa), gap));
+        if (area > 0) edges.push({ a, b, area });
+      }
+    }
+    for (const v of va) near[v] = 0;
+    for (const v of vb) near[v] = 0;
   });
   return edges;
 }
 
 /**
- * Chain from the joint graph: keep joints with at least `minCount` close vertices,
- * take the longest path (double BFS on the largest connected group), and put the
- * end with the larger piece first (the head is usually the biggest piece).
+ * @param {Float32Array} P
+ * @param {number[]} verts
+ * @param {number} cell
+ * @returns {PointGrid}
+ */
+function vertexGrid(P, verts, cell) {
+  const pts = new Float32Array(verts.length * 3);
+  verts.forEach((v, i) => {
+    pts[i * 3] = P[v * 3];
+    pts[i * 3 + 1] = P[v * 3 + 1];
+    pts[i * 3 + 2] = P[v * 3 + 2];
+  });
+  return new PointGrid(pts, cell);
+}
+
+/**
+ * Faces of piece p with at least one marked vertex.
+ * @param {Uint32Array} indices
+ * @param {PieceTable} pt
+ * @param {number} p
+ * @param {Uint8Array} mark
+ * @returns {Uint32Array}
+ */
+function nearFaces(indices, pt, p, mark) {
+  /** @type {number[]} */
+  const out = [];
+  for (let k = pt.pieceStart[p]; k < pt.pieceStart[p + 1]; k++) {
+    const f = pt.pieceFaces[k];
+    if (mark[indices[f * 3]] || mark[indices[f * 3 + 1]] || mark[indices[f * 3 + 2]]) out.push(f);
+  }
+  return Uint32Array.from(out);
+}
+
+/**
+ * Total area of the faces whose centre lies within `gap` of the surface in `grid`.
+ * @param {Float32Array} P
+ * @param {Uint32Array} indices
+ * @param {Uint32Array} faces
+ * @param {TriangleGrid} grid
+ * @param {number} gap
+ * @returns {number}
+ */
+function contactArea(P, indices, faces, grid, gap) {
+  const hit = [0, 0, 0, 0];
+  let total = 0;
+  for (let i = 0; i < faces.length; i++) {
+    const f = faces[i];
+    const a = indices[f * 3] * 3, b = indices[f * 3 + 1] * 3, c = indices[f * 3 + 2] * 3;
+    const x = (P[a] + P[b] + P[c]) / 3, y = (P[a + 1] + P[b + 1] + P[c + 1]) / 3, z = (P[a + 2] + P[b + 2] + P[c + 2]) / 3;
+    if (grid.closest(x, y, z, gap, hit) < 0) continue;
+    const ux = P[b] - P[a], uy = P[b + 1] - P[a + 1], uz = P[b + 2] - P[a + 2];
+    const vx = P[c] - P[a], vy = P[c + 1] - P[a + 1], vz = P[c + 2] - P[a + 2];
+    total += 0.5 * Math.hypot(uy * vz - uz * vy, uz * vx - ux * vz, ux * vy - uy * vx);
+  }
+  return total;
+}
+
+/**
+ * Smallest contact area that counts as a joint. Joints of one model are much alike
+ * while touching pieces have far less contact, so look for the biggest jump
+ * (at least 2.5x) in the sorted areas below the median; without one, a quarter
+ * of the median.
+ * @param {JointEdge[]} edges
+ * @returns {number}
+ */
+export function jointThreshold(edges) {
+  const areas = edges.map((e) => e.area).sort((x, y) => x - y);
+  if (!areas.length) return Infinity;
+  const median = areas[areas.length >> 1];
+  let best = 0, threshold = 0.25 * median;
+  for (let i = 0; i + 1 < areas.length && areas[i + 1] <= median; i++) {
+    const ratio = areas[i + 1] / Math.max(areas[i], 0.05);
+    if (ratio >= 2.5 && ratio > best) {
+      best = ratio;
+      threshold = Math.sqrt(areas[i + 1] * Math.max(areas[i], 0.05));
+    }
+  }
+  return Math.max(0.5, threshold);
+}
+
+/**
+ * Chain from the joint graph: keep the real joints (see jointThreshold), take the
+ * longest path (double BFS on the largest connected group), and put the end with
+ * the larger piece first (the head is usually the biggest piece).
  * @param {number} pieceCount
  * @param {JointEdge[]} edges
  * @param {PieceStats[]} stats
  * @returns {ChainInfo}
  */
-export function buildChain(pieceCount, edges, stats, minCount = 60) {
+export function buildChain(pieceCount, edges, stats) {
+  const minArea = jointThreshold(edges);
   /** @type {number[][]} */
   const adj = Array.from({ length: pieceCount }, () => []);
   for (const e of edges) {
-    if (e.count < minCount) continue;
+    if (e.area < minArea) continue;
     adj[e.a].push(e.b);
     adj[e.b].push(e.a);
   }

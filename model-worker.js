@@ -10,7 +10,7 @@ import { write3mf } from './threemf-writer.js?v=f501135853';
 import { compareModels } from './round-trip-check.js?v=796b699a5d';
 import { modelTransferables } from './model-data.js?v=bb5fb4d3b6';
 /** @typedef {import('./model-data.js').ModelData} ModelData */
-import { analyze, analysisTransferables } from './piece-analysis.js?v=be07861d55';
+import { analyze, analysisTransferables } from './piece-analysis.js?v=af76b7afcc';
 /** @typedef {import('./worker-client.js').WorkerRequest} WorkerRequest */
 /** @typedef {import('./worker-client.js').WorkerResponse} WorkerResponse */
 

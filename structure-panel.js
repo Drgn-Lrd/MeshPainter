@@ -8,7 +8,7 @@
 /** @typedef {import('./model-data.js').ModelData} ModelData */
 /** @typedef {import('./filament-panel.js').Filament} Filament */
 /** @typedef {import('./region-growing.js').GrowParams} GrowParams */
-import { StructureEngine, EXCLUDE_ANGLE } from './structure-engine.js?v=77ae4123ee';
+import { StructureEngine, EXCLUDE_ANGLE } from './structure-engine.js?v=6b2f672dbc';
 /** @typedef {import('./structure-engine.js').Rule} Rule */
 /** @typedef {import('./structure-engine.js').StructureType} StructureType */
 import { inkFor } from './colors.js?v=0dda646d26';
